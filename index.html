@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Vault</title>
+  <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      font-family: 'VT323', monospace;
+      background: #008080;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      font-size: 16px;
+    }
+
+    /* ── Win95 Borders ── */
+    .raised {
+      border-top: 2px solid #ffffff;
+      border-left: 2px solid #ffffff;
+      border-right: 2px solid #808080;
+      border-bottom: 2px solid #808080;
+    }
+    .sunken {
+      border-top: 2px solid #808080;
+      border-left: 2px solid #808080;
+      border-right: 2px solid #ffffff;
+      border-bottom: 2px solid #ffffff;
+    }
+    .btn {
+      background: #c0c0c0;
+      border-top: 2px solid #ffffff;
+      border-left: 2px solid #ffffff;
+      border-right: 2px solid #808080;
+      border-bottom: 2px solid #808080;
+      font-family: 'VT323', monospace;
+      font-size: 16px;
+      padding: 3px 14px;
+      cursor: pointer;
+      color: #000;
+      min-width: 80px;
+    }
+    .btn:active {
+      border-top: 2px solid #808080;
+      border-left: 2px solid #808080;
+      border-right: 2px solid #ffffff;
+      border-bottom: 2px solid #ffffff;
+      padding: 4px 13px 2px 15px;
+    }
+    .btn:disabled { color: #808080; cursor: default; }
+    input, select, textarea {
+      font-family: 'VT323', monospace;
+      font-size: 16px;
+      background: #fff;
+      border-top: 2px solid #808080;
+      border-left: 2px solid #808080;
+      border-right: 2px solid #ffffff;
+      border-bottom: 2px solid #ffffff;
+      padding: 3px 6px;
+      color: #000;
+      outline: none;
+    }
+
+    /* ── Desktop ── */
+    #desktop {
+      flex: 1;
+      padding: 8px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding-bottom: 48px;
+    }
+
+    /* ── Main Window ── */
+    #main-window {
+      background: #c0c0c0;
+      width: 100%;
+      max-width: 960px;
+      min-height: 520px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Title Bar ── */
+    .titlebar {
+      background: linear-gradient(to right, #000080, #1084d0);
+      padding: 3px 6px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      user-select: none;
+    }
+    .titlebar-left { display: flex; align-items: center; gap: 6px; color: #fff; font-size: 17px; }
+    .winbtns { display: flex; gap: 2px; }
+    .winbtn {
+      width: 20px; height: 18px;
+      background: #c0c0c0;
+      border-top: 2px solid #fff;
+      border-left: 2px solid #fff;
+      border-right: 2px solid #808080;
+      border-bottom: 2px solid #808080;
+      font-size: 12px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      color: #000;
+    }
+
+    /* ── Menu Bar ── */
+    .menubar {
+      background: #c0c0c0;
+      display: flex;
+      border-bottom: 1px solid #808080;
+      padding: 1px 2px;
+    }
+    .menubar span {
+      font-size: 16px; padding: 2px 10px; cursor: pointer; color: #000;
+    }
+    .menubar span:hover { background: #000080; color: #fff; }
+
+    /* ── Toolbar ── */
+    .toolbar {
+      background: #c0c0c0;
+      padding: 4px 6px;
+      display: flex;
+      gap: 4px;
+      align-items: center;
+      border-bottom: 2px solid #808080;
+      flex-wrap: wrap;
+    }
+    .toolbar .sep { width: 1px; height: 24px; background: #808080; border-right: 1px solid #fff; margin: 0 2px; }
+    #search-input { width: 200px; }
+
+    /* ── Address Bar ── */
+    .addrbar {
+      background: #c0c0c0;
+      padding: 3px 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      border-bottom: 1px solid #808080;
+      font-size: 15px;
+    }
+    #addr-field { flex: 1; font-size: 15px; }
+
+    /* ── Main Area ── */
+    .main-area { display: flex; flex: 1; min-height: 380px; }
+
+    /* ── Sidebar ── */
+    #sidebar {
+      width: 155px;
+      flex-shrink: 0;
+      background: #c0c0c0;
+      border-right: 2px solid #808080;
+      padding: 4px;
+      overflow-y: auto;
+    }
+    .sidebar-title { font-size: 13px; color: #000080; padding: 2px 4px; margin-bottom: 2px; border-bottom: 1px solid #808080; }
+    .cat-folder {
+      display: flex; align-items: center; gap: 5px;
+      padding: 3px 6px; cursor: pointer; font-size: 16px; color: #000;
+      white-space: nowrap;
+    }
+    .cat-folder:hover { background: #000080; color: #fff; }
+    .cat-folder.active { background: #000080; color: #fff; }
+
+    /* ── Content Area ── */
+    #content {
+      flex: 1;
+      background: #fff;
+      padding: 10px;
+      overflow-y: auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+      gap: 8px;
+      align-content: start;
+      position: relative;
+    }
+
+    /* ── Loading overlay ── */
+    #loading {
+      display: none;
+      position: absolute;
+      inset: 0;
+      background: rgba(255,255,255,0.85);
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      color: #000080;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 10;
+    }
+    #loading.show { display: flex; }
+    .spinner {
+      width: 24px; height: 24px;
+      border: 3px solid #c0c0c0;
+      border-top-color: #000080;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .link-icon {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 4px; padding: 6px 4px; cursor: pointer;
+      border: 1px solid transparent;
+    }
+    .link-icon:hover { border: 1px dotted #000080; background: #dde8f0; }
+    .link-icon.selected { border: 1px solid #000080; background: #000080; }
+    .link-icon .emoji-box { font-size: 28px; line-height: 1; }
+    .link-icon .icon-name {
+      font-size: 13px; text-align: center; color: #000;
+      word-break: break-word; line-height: 1.2; max-width: 80px;
+    }
+    .link-icon.selected .icon-name { color: #fff; }
+
+    #empty-state {
+      grid-column: 1/-1;
+      text-align: center;
+      color: #808080;
+      font-size: 18px;
+      padding: 40px;
+      display: none;
+    }
+
+    /* ── Status Bar ── */
+    .statusbar {
+      background: #c0c0c0;
+      padding: 2px 6px;
+      display: flex;
+      gap: 4px;
+      border-top: 2px solid #808080;
+    }
+    .status-pane {
+      font-size: 14px; color: #000; padding: 1px 8px;
+      border-top: 2px solid #808080;
+      border-left: 2px solid #808080;
+      border-right: 2px solid #fff;
+      border-bottom: 2px solid #fff;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    #status-count { min-width: 110px; }
+    #status-selected { flex: 1; }
+    #status-sync { min-width: 120px; }
+
+    /* ── Taskbar ── */
+    #taskbar {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      height: 40px; background: #c0c0c0;
+      border-top: 2px solid #fff;
+      display: flex; align-items: center;
+      padding: 0 4px; gap: 4px; z-index: 100;
+    }
+    #start-btn {
+      background: #c0c0c0;
+      border-top: 2px solid #fff; border-left: 2px solid #fff;
+      border-right: 2px solid #808080; border-bottom: 2px solid #808080;
+      font-family: 'VT323', monospace; font-size: 17px; font-weight: 700;
+      padding: 2px 10px; cursor: pointer;
+    }
+    .task-item {
+      border-top: 2px solid #808080; border-left: 2px solid #808080;
+      border-right: 2px solid #fff; border-bottom: 2px solid #fff;
+      padding: 2px 10px; font-size: 15px;
+    }
+    #clock {
+      margin-left: auto;
+      border-top: 2px solid #808080; border-left: 2px solid #808080;
+      border-right: 2px solid #fff; border-bottom: 2px solid #fff;
+      padding: 2px 10px; font-size: 15px;
+    }
+
+    /* ── Modal Overlay ── */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.3); z-index: 200;
+      align-items: center; justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+
+    /* ── Dialog Window ── */
+    .dialog {
+      background: #c0c0c0;
+      border-top: 2px solid #fff; border-left: 2px solid #fff;
+      border-right: 2px solid #808080; border-bottom: 2px solid #808080;
+      min-width: 320px; max-width: 420px; width: 95%;
+    }
+    .dialog-body { padding: 14px 16px; }
+    .field-row { margin-bottom: 10px; }
+    .field-lbl { font-size: 15px; color: #000; margin-bottom: 3px; display: block; }
+    .field-row input, .field-row select, .field-row textarea { width: 100%; }
+    .field-row textarea { resize: vertical; min-height: 48px; }
+    .dialog-btns { display: flex; justify-content: flex-end; gap: 6px; margin-top: 12px; }
+
+    /* ── Context Menu ── */
+    #ctx-menu {
+      display: none; position: fixed;
+      background: #c0c0c0;
+      border-top: 2px solid #fff; border-left: 2px solid #fff;
+      border-right: 2px solid #808080; border-bottom: 2px solid #808080;
+      z-index: 300; min-width: 160px;
+    }
+    #ctx-menu.open { display: block; }
+    .ctx-item { padding: 5px 16px; font-size: 16px; cursor: pointer; color: #000; }
+    .ctx-item:hover { background: #000080; color: #fff; }
+    .ctx-sep { height: 1px; background: #808080; margin: 2px 4px; border-bottom: 1px solid #fff; }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed; bottom: 50px; right: 12px;
+      background: #000080; color: #fff;
+      padding: 6px 14px; font-size: 15px;
+      border-top: 2px solid #fff; border-left: 2px solid #fff;
+      border-right: 2px solid #808080; border-bottom: 2px solid #808080;
+      opacity: 0; transition: opacity 0.2s; pointer-events: none; z-index: 400;
+    }
+    #toast.show { opacity: 1; }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 16px; }
+    ::-webkit-scrollbar-track { background: #c0c0c0; }
+    ::-webkit-scrollbar-thumb {
+      background: #c0c0c0;
+      border-top: 2px solid #fff; border-left: 2px solid #fff;
+      border-right: 2px solid #808080; border-bottom: 2px solid #808080;
+    }
+
+    @media (max-width: 600px) {
+      #sidebar { width: 110px; }
+      #search-input { width: 120px; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="desktop">
+  <div id="main-window" class="raised">
+
+    <!-- Title Bar -->
+    <div class="titlebar">
+      <div class="titlebar-left">
+        <span>🗂️</span> MY VAULT — Personal Link Directory
+      </div>
+      <div class="winbtns">
+        <div class="winbtn">_</div>
+        <div class="winbtn">□</div>
+        <div class="winbtn">✕</div>
+      </div>
+    </div>
+
+    <!-- Menu Bar -->
+    <div class="menubar">
+      <span onclick="openAdd()"><u>F</u>ile</span>
+      <span onclick="refreshLinks()"><u>R</u>efresh</span>
+      <span onclick="showHelp()"><u>H</u>elp</span>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <button class="btn" onclick="openAdd()">📄 New Link</button>
+      <button class="btn" onclick="refreshLinks()">🔄 Refresh</button>
+      <div class="sep"></div>
+      <input id="search-input" type="text" placeholder="🔍 Search vault..." oninput="renderContent()" />
+    </div>
+
+    <!-- Address Bar -->
+    <div class="addrbar">
+      <span>Category:</span>
+      <input id="addr-field" readonly value="All Links" />
+    </div>
+
+    <!-- Main Area -->
+    <div class="main-area">
+
+      <!-- Sidebar -->
+      <div id="sidebar">
+        <div class="sidebar-title">CATEGORIES</div>
+        <div id="cat-list"></div>
+      </div>
+
+      <!-- Content -->
+      <div id="content">
+        <div id="loading">
+          <div class="spinner"></div>
+          <span>Loading vault...</span>
+        </div>
+        <div id="empty-state">No links found.<br>Click 📄 New Link to add one!</div>
+      </div>
+
+    </div>
+
+    <!-- Status Bar -->
+    <div class="statusbar">
+      <div class="status-pane" id="status-count">0 objects</div>
+      <div class="status-pane" id="status-selected" style="flex:1">Select a link to see details</div>
+      <div class="status-pane" id="status-sync">✅ Synced</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Taskbar -->
+<div id="taskbar">
+  <button id="start-btn">▶ Start</button>
+  <div class="task-item">🗂️ My Vault</div>
+  <div id="clock"></div>
+</div>
+
+<!-- Add / Edit Dialog -->
+<div class="modal-overlay" id="link-modal">
+  <div class="dialog">
+    <div class="titlebar">
+      <div class="titlebar-left">
+        <span>📄</span>
+        <span id="modal-title">Add New Link</span>
+      </div>
+      <div class="winbtns">
+        <div class="winbtn" onclick="closeModal()">✕</div>
+      </div>
+    </div>
+    <div class="dialog-body">
+      <div class="field-row">
+        <label class="field-lbl" for="m-title">Title:</label>
+        <input id="m-title" type="text" placeholder="e.g. Shimano Pedals" />
+      </div>
+      <div class="field-row">
+        <label class="field-lbl" for="m-url">URL:</label>
+        <input id="m-url" type="text" placeholder="https://..." />
+      </div>
+      <div class="field-row">
+        <label class="field-lbl" for="m-cat">Category:</label>
+        <select id="m-cat">
+          <option value="GitHub">🐙 GitHub</option>
+          <option value="AI Tools">🤖 AI Tools</option>
+          <option value="Social">👥 Social</option>
+          <option value="Places">📍 Places</option>
+          <option value="Buy">🛒 Buy</option>
+          <option value="Bikes">🚴 Bikes</option>
+          <option value="Clothing">👕 Clothing</option>
+          <option value="Dev Tools">💻 Dev Tools</option>
+          <option value="Read / Watch">📖 Read / Watch</option>
+          <option value="General">🌐 General</option>
+          <option value="Other">🔖 Other</option>
+        </select>
+      </div>
+      <div class="field-row">
+        <label class="field-lbl" for="m-note">Note (optional):</label>
+        <textarea id="m-note" placeholder="e.g. want to buy these, great coffee spot..."></textarea>
+      </div>
+      <div class="dialog-btns">
+        <button class="btn" id="save-btn" onclick="saveLink()">✔ OK</button>
+        <button class="btn" onclick="closeModal()">✖ Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Context Menu -->
+<div id="ctx-menu">
+  <div class="ctx-item" onclick="ctxOpen()">🌐 Open Link</div>
+  <div class="ctx-item" onclick="ctxCopy()">📋 Copy URL</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" onclick="ctxEdit()">✏️ Edit</div>
+  <div class="ctx-item" onclick="ctxDelete()">🗑️ Delete</div>
+</div>
+
+<!-- Help Dialog -->
+<div class="modal-overlay" id="help-modal">
+  <div class="dialog">
+    <div class="titlebar">
+      <div class="titlebar-left"><span>❓</span> Help — My Vault</div>
+      <div class="winbtns"><div class="winbtn" onclick="closeHelp()">✕</div></div>
+    </div>
+    <div class="dialog-body" style="font-size:16px;line-height:2;color:#000">
+      <b>MY VAULT — Personal Link Directory</b><br><br>
+      📄 <b>New Link</b> — Add any URL with title, category &amp; note<br>
+      🔍 <b>Search</b> — Real-time search across all fields<br>
+      📁 <b>Sidebar</b> — Click a category to filter<br>
+      🖱️ <b>Right-click</b> a link to open, copy, edit or delete<br>
+      🔄 <b>Refresh</b> — Reload links from Google Sheets<br><br>
+      <i>Data is stored in your private Google Sheet.</i><br>
+      <i>Accessible from any device!</i>
+      <div class="dialog-btns"><button class="btn" onclick="closeHelp()">✔ OK</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+  // ── Category config ──
+  const CAT_EMOJI = {
+    'GitHub':'🐙','AI Tools':'🤖','Social':'👥','Places':'📍',
+    'Buy':'🛒','Bikes':'🚴','Clothing':'👕','Dev Tools':'💻',
+    'Read / Watch':'📖','General':'🌐','Other':'🔖'
+  };
+  const ALL_CATS = Object.keys(CAT_EMOJI);
+
+  // ── State ──
+  let links = [];
+  let activeCat = 'All';
+  let editId = null;
+  let ctxId = null;
+  let selectedId = null;
+
+  // ── Clock ──
+  function updateClock() {
+    const n = new Date();
+    let h = n.getHours(), m = n.getMinutes(), a = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+    document.getElementById('clock').textContent = h + ':' + (m < 10 ? '0' + m : m) + ' ' + a;
+  }
+  updateClock(); setInterval(updateClock, 10000);
+
+  // ── API calls to Vercel serverless function ──
+  async function apiFetch(method, body, queryId) {
+    let url = '/api/sheets';
+    if (method === 'DELETE' && queryId) url += '?id=' + queryId;
+    const opts = { method, headers: { 'Content-Type': 'application/json' } };
+    if (body) opts.body = JSON.stringify(body);
+    const res = await fetch(url, opts);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'API error');
+    return data;
+  }
+
+  // ── Load links from Google Sheets ──
+  async function refreshLinks() {
+    setLoading(true);
+    setSyncStatus('🔄 Syncing...');
+    try {
+      const data = await apiFetch('GET');
+      links = data.links || [];
+      renderSidebar();
+      renderContent();
+      setSyncStatus('✅ Synced');
+    } catch (err) {
+      showToast('⚠️ Could not load links: ' + err.message);
+      setSyncStatus('❌ Sync failed');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ── Sidebar ──
+  function renderSidebar() {
+    const usedCats = ['All', ...ALL_CATS.filter(c => links.some(l => l.cat === c))];
+    document.getElementById('cat-list').innerHTML = usedCats.map(c => {
+      const emoji = c === 'All' ? '🗂️' : CAT_EMOJI[c];
+      return `<div class="cat-folder${c === activeCat ? ' active' : ''}" onclick="setCat('${c}')">
+        <span>${emoji}</span> ${c}
+      </div>`;
+    }).join('');
+  }
+
+  function setCat(c) {
+    activeCat = c;
+    selectedId = null;
+    renderSidebar();
+    renderContent();
+    const label = c === 'All' ? `All Links (${links.length} items)` : `${CAT_EMOJI[c]} ${c}`;
+    document.getElementById('addr-field').value = label;
+  }
+
+  // ── Content ──
+  function renderContent() {
+    const q = document.getElementById('search-input').value.toLowerCase().trim();
+    const filtered = links.filter(l => {
+      const matchCat = activeCat === 'All' || l.cat === activeCat;
+      const matchQ = !q || l.title.toLowerCase().includes(q)
+        || l.url.toLowerCase().includes(q)
+        || (l.note||'').toLowerCase().includes(q);
+      return matchCat && matchQ;
+    });
+
+    const content = document.getElementById('content');
+    content.querySelectorAll('.link-icon').forEach(e => e.remove());
+    const empty = document.getElementById('empty-state');
+
+    if (!filtered.length) {
+      empty.style.display = 'block';
+    } else {
+      empty.style.display = 'none';
+      filtered.forEach(l => {
+        const div = document.createElement('div');
+        div.className = 'link-icon' + (l.id === selectedId ? ' selected' : '');
+        div.dataset.id = l.id;
+        div.innerHTML = `<div class="emoji-box">${CAT_EMOJI[l.cat] || '🔖'}</div>
+          <div class="icon-name">${escHtml(l.title)}</div>`;
+        div.addEventListener('click', () => selectLink(l.id));
+        div.addEventListener('dblclick', () => openUrl(l.url));
+        div.addEventListener('contextmenu', e => { e.preventDefault(); showCtx(e, l.id); });
+        content.appendChild(div);
+      });
+    }
+
+    document.getElementById('status-count').textContent =
+      filtered.length + ' object' + (filtered.length !== 1 ? 's' : '');
+    updateSelectedStatus();
+  }
+
+  function selectLink(id) {
+    selectedId = id;
+    document.querySelectorAll('.link-icon').forEach(el =>
+      el.classList.toggle('selected', el.dataset.id === String(id))
+    );
+    updateSelectedStatus();
+  }
+
+  function updateSelectedStatus() {
+    const l = links.find(x => x.id === selectedId);
+    document.getElementById('status-selected').textContent = l
+      ? `${l.url}${l.note ? '  |  ' + l.note : ''}`
+      : 'Select a link to see details';
+  }
+
+  function openUrl(url) { window.open(url, '_blank'); }
+  function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // ── Add / Edit Modal ──
+  function openAdd() {
+    editId = null;
+    document.getElementById('modal-title').textContent = 'Add New Link';
+    document.getElementById('m-title').value = '';
+    document.getElementById('m-url').value = '';
+    document.getElementById('m-cat').value = 'General';
+    document.getElementById('m-note').value = '';
+    document.getElementById('link-modal').classList.add('open');
+    setTimeout(() => document.getElementById('m-title').focus(), 50);
+  }
+
+  function openEdit(id) {
+    const l = links.find(x => x.id === id);
+    if (!l) return;
+    editId = id;
+    document.getElementById('modal-title').textContent = 'Edit Link';
+    document.getElementById('m-title').value = l.title;
+    document.getElementById('m-url').value = l.url;
+    document.getElementById('m-cat').value = l.cat;
+    document.getElementById('m-note').value = l.note || '';
+    document.getElementById('link-modal').classList.add('open');
+    setTimeout(() => document.getElementById('m-title').focus(), 50);
+  }
+
+  function closeModal() { document.getElementById('link-modal').classList.remove('open'); }
+
+  async function saveLink() {
+    const title = document.getElementById('m-title').value.trim();
+    let url = document.getElementById('m-url').value.trim();
+    const cat = document.getElementById('m-cat').value;
+    const note = document.getElementById('m-note').value.trim();
+    if (!title || !url) { showToast('⚠️ Title and URL required!'); return; }
+    if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+
+    const saveBtn = document.getElementById('save-btn');
+    saveBtn.disabled = true;
+    saveBtn.textContent = '⏳ Saving...';
+    setSyncStatus('🔄 Saving...');
+
+    try {
+      const link = { id: editId || String(Date.now()), title, url, cat, note, date: new Date().toISOString() };
+      if (editId) {
+        await apiFetch('PUT', link);
+        const idx = links.findIndex(x => x.id === editId);
+        if (idx !== -1) links[idx] = link;
+        showToast('✔ Link updated!');
+      } else {
+        await apiFetch('POST', link);
+        links.push(link);
+        showToast('✔ Link saved!');
+      }
+      setSyncStatus('✅ Synced');
+      closeModal();
+      renderSidebar();
+      renderContent();
+    } catch (err) {
+      showToast('⚠️ Save failed: ' + err.message);
+      setSyncStatus('❌ Sync failed');
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.textContent = '✔ OK';
+    }
+  }
+
+  // ── Context Menu ──
+  function showCtx(e, id) {
+    ctxId = id; selectLink(id);
+    const menu = document.getElementById('ctx-menu');
+    menu.style.left = Math.min(e.clientX, window.innerWidth - 170) + 'px';
+    menu.style.top  = Math.min(e.clientY, window.innerHeight - 160) + 'px';
+    menu.classList.add('open');
+  }
+  function hideCtx() { document.getElementById('ctx-menu').classList.remove('open'); }
+  function ctxOpen() { const l = links.find(x => x.id === ctxId); if (l) openUrl(l.url); hideCtx(); }
+  function ctxCopy() {
+    const l = links.find(x => x.id === ctxId);
+    if (l) { navigator.clipboard.writeText(l.url); showToast('📋 URL copied!'); }
+    hideCtx();
+  }
+  function ctxEdit() { openEdit(ctxId); hideCtx(); }
+  async function ctxDelete() {
+    const l = links.find(x => x.id === ctxId);
+    if (!l || !confirm(`Delete "${l.title}"?`)) { hideCtx(); return; }
+    hideCtx();
+    setSyncStatus('🔄 Deleting...');
+    try {
+      await apiFetch('DELETE', null, l.id);
+      links = links.filter(x => x.id !== ctxId);
+      if (selectedId === ctxId) selectedId = null;
+      renderSidebar(); renderContent();
+      showToast('🗑️ Link deleted!');
+      setSyncStatus('✅ Synced');
+    } catch (err) {
+      showToast('⚠️ Delete failed: ' + err.message);
+      setSyncStatus('❌ Sync failed');
+    }
+  }
+
+  // ── Help ──
+  function showHelp() { document.getElementById('help-modal').classList.add('open'); }
+  function closeHelp() { document.getElementById('help-modal').classList.remove('open'); }
+
+  // ── UI helpers ──
+  function setLoading(v) { document.getElementById('loading').classList.toggle('show', v); }
+  function setSyncStatus(msg) { document.getElementById('status-sync').textContent = msg; }
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2200);
+  }
+
+  // ── Global events ──
+  document.addEventListener('click', e => {
+    if (!document.getElementById('ctx-menu').contains(e.target)) hideCtx();
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { closeModal(); closeHelp(); hideCtx(); }
+    if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); openAdd(); }
+  });
+  document.getElementById('link-modal').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') saveLink();
+  });
+
+  // ── Init ──
+  refreshLinks();
+</script>
+</body>
+</html>
