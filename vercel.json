@@ -1,18 +1,8 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "api/sheets.js",
-      "use": "@vercel/node"
-    },
-    {
-      "src": "index.html",
-      "use": "@vercel/static"
-    }
-  ],
   "routes": [
     {
-      "src": "/api/(.*)",
+      "src": "/api/sheets",
       "dest": "/api/sheets.js"
     },
     {
