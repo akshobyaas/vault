@@ -1,7 +1,23 @@
 # 🗂️ My Vault — Personal Link Directory
 
-A Windows 95-style personal URL directory backed by Google Sheets and hosted on Vercel.
-Save anything — links, places, things to buy, tools, profiles — from one URL, on any device.
+> A Windows 95-style personal URL directory backed by Google Sheets and hosted on Vercel.  
+> Save links, places, tools, profiles — anything with a URL — from any device, all in one place.
+
+![Windows 95 UI](https://img.shields.io/badge/UI-Windows%2095-008080?style=flat-square)
+![Hosted on Vercel](https://img.shields.io/badge/Hosted-Vercel-black?style=flat-square&logo=vercel)
+![Powered by Google Sheets](https://img.shields.io/badge/DB-Google%20Sheets-34a853?style=flat-square&logo=google-sheets)
+
+---
+
+## ✨ Features
+
+- 🖥️ Retro Windows 95 desktop UI with draggable-feel icons
+- 📁 Organize links into custom categories (folders in the sidebar)
+- 🔍 Real-time search across all saved links
+- 📝 Add titles, URLs, categories, and notes to each entry
+- 🔄 Syncs instantly with your private Google Sheet
+- 📱 Works on any device — phone, tablet, laptop
+- 🔒 Your data stays in your own Google Sheet — no third-party database
 
 ---
 
@@ -9,71 +25,68 @@ Save anything — links, places, things to buy, tools, profiles — from one URL
 
 ```
 vault/
-├── index.html        ← Full vault UI (HTML + CSS + JS)
+├── index.html        ← Full vault UI (HTML + CSS + Vanilla JS)
 ├── api/
-│   └── sheets.js     ← Vercel serverless function (talks to Google Sheets)
+│   └── sheets.js     ← Vercel serverless function (Google Sheets proxy)
 ├── vercel.json       ← Vercel deployment config
-├── .env.example      ← Template for your secret keys
+├── .env.example      ← Template for environment variables
 ├── .gitignore        ← Keeps .env out of GitHub
-└── README.md         ← This file
+└── README.md         ← You are here
 ```
 
 ---
 
 ## 🚀 Setup Guide
 
-Follow these steps **in order**. Takes about 15–20 minutes total.
+Total time: ~15–20 minutes. Follow steps in order.
 
 ---
 
-### STEP 1 — Create your Google Sheet
+### Step 1 — Create your Google Sheet
 
-1. Go to [sheets.google.com](https://sheets.google.com) and create a new sheet
+1. Go to [sheets.google.com](https://sheets.google.com) and create a new spreadsheet
 2. Rename the first tab (bottom of screen) to exactly: **`Vault`**
 3. Add these headers in **Row 1**:
 
-   | A    | B     | C   | D   | E    | F    |
-   |------|-------|-----|-----|------|------|
-   | id   | title | url | cat | note | date |
+   | A  | B     | C   | D   | E    | F    |
+   |----|-------|-----|-----|------|------|
+   | id | title | url | cat | note | date |
 
 4. Copy the **Sheet ID** from the URL:
    ```
-   https://docs.google.com/spreadsheets/d/THIS_IS_YOUR_SHEET_ID/edit
+   https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID_HERE/edit
    ```
-   Save it — you'll need it later.
+   Save it — you'll need it in Step 8.
 
 ---
 
-### STEP 2 — Set up Google Cloud Project
+### Step 2 — Create a Google Cloud Project
 
 1. Go to [console.cloud.google.com](https://console.cloud.google.com)
-2. Click **"Select a project"** → **"New Project"**
+2. Click **Select a project → New Project**
 3. Name it `my-vault` → click **Create**
-4. Wait for it to create, then select it
+4. Select the new project once it's ready
 
 ---
 
-### STEP 3 — Enable Google Sheets API
+### Step 3 — Enable Google Sheets API
 
-1. In Google Cloud Console, go to **APIs & Services → Library**
-2. Search for **"Google Sheets API"**
+1. Go to **APIs & Services → Library**
+2. Search for **Google Sheets API**
 3. Click it → click **Enable**
 
 ---
 
-### STEP 4 — Create OAuth 2.0 Credentials
-
-> This lets your vault read and write your private Google Sheet securely.
+### Step 4 — Create OAuth 2.0 Credentials
 
 1. Go to **APIs & Services → Credentials**
-2. Click **"+ Create Credentials"** → **"OAuth client ID"**
-3. If prompted to configure consent screen:
+2. Click **+ Create Credentials → OAuth client ID**
+3. If prompted to configure a consent screen:
    - Choose **External**
-   - Fill in App name: `My Vault`
-   - Fill in your email for support and developer contact
-   - Click **Save and Continue** through the rest (defaults are fine)
-   - On **"Test users"** step, add your own Gmail → Save
-4. Back on Create OAuth client ID:
+   - Fill in App name: `My Vault` and your email
+   - Click through the rest with defaults
+   - On the **Test users** step, add your Gmail → Save
+4. Back on the OAuth client ID screen:
    - Application type: **Web application**
    - Name: `My Vault`
    - Under **Authorized redirect URIs**, add:
@@ -81,88 +94,66 @@ Follow these steps **in order**. Takes about 15–20 minutes total.
      https://developers.google.com/oauthplayground
      ```
    - Click **Create**
-5. Copy and save your:
-   - **Client ID** (looks like `123456789-abc.apps.googleusercontent.com`)
-   - **Client Secret** (looks like `GOCSPX-xxxx`)
+5. Save your **Client ID** and **Client Secret**
 
 ---
 
-### STEP 5 — Get your Refresh Token
-
-> A refresh token lets your serverless function get a fresh access token whenever it needs one — without you logging in every time.
+### Step 5 — Get a Refresh Token
 
 1. Go to [developers.google.com/oauthplayground](https://developers.google.com/oauthplayground)
-2. Click the ⚙️ **gear icon** (top right) → check **"Use your own OAuth credentials"**
-3. Enter your **Client ID** and **Client Secret** → Close
-4. In the left panel, scroll to find **"Google Sheets API v4"**
-5. Expand it → check `https://www.googleapis.com/auth/spreadsheets`
-6. Click **"Authorize APIs"** → sign in with your Google account → Allow
-7. Click **"Exchange authorization code for tokens"**
-8. Copy the **Refresh token** value — save it securely
+2. Click the ⚙️ gear icon (top right) → check **Use your own OAuth credentials**
+3. Enter your **Client ID** and **Client Secret** → close
+4. In the left panel, find **Google Sheets API v4**
+5. Check `https://www.googleapis.com/auth/spreadsheets` → click **Authorize APIs**
+6. Sign in with your Google account → Allow
+7. Click **Exchange authorization code for tokens**
+8. Copy the **Refresh token** — save it securely
 
 ---
 
-### STEP 6 — Create an API Key
+### Step 6 — Create an API Key
 
-1. Back in Google Cloud Console → **APIs & Services → Credentials**
-2. Click **"+ Create Credentials"** → **"API Key"**
+1. Go to **APIs & Services → Credentials**
+2. Click **+ Create Credentials → API Key**
 3. Copy the key
-4. Click **"Restrict Key"**:
-   - Under **API restrictions** → select **"Restrict key"**
-   - Choose **Google Sheets API**
+4. Click **Restrict Key**:
+   - Under API restrictions, select **Google Sheets API**
    - Click **Save**
 
 ---
 
-### STEP 7 — Push to GitHub
+### Step 7 — Deploy on Vercel
 
-1. Create a new **public** or **private** repo on GitHub (e.g. `vault`)
-2. Push all project files:
-   ```bash
-   git init
-   git add .
-   git commit -m "initial commit"
-   git branch -M main
-   git remote add origin https://github.com/akshobyaas/vault.git
-   git push -u origin main
-   ```
-   > ✅ `.env` is in `.gitignore` — it will NOT be pushed
+1. Go to [vercel.com](https://vercel.com) and sign in with GitHub
+2. Click **Add New Project** → import your `vault` repo
+3. Click **Deploy** (default settings are fine)
+4. After deploy, go to **Settings → Environment Variables**
+5. Add each variable:
 
----
+   | Variable | Value |
+   |----------|-------|
+   | `GOOGLE_SHEET_ID` | Sheet ID from Step 1 |
+   | `GOOGLE_API_KEY` | API key from Step 6 |
+   | `GOOGLE_CLIENT_ID` | Client ID from Step 4 |
+   | `GOOGLE_CLIENT_SECRET` | Client Secret from Step 4 |
+   | `GOOGLE_REFRESH_TOKEN` | Refresh token from Step 5 |
 
-### STEP 8 — Deploy on Vercel
-
-1. Go to [vercel.com](https://vercel.com) → sign up / log in with GitHub
-2. Click **"Add New Project"**
-3. Import your `vault` GitHub repo
-4. Click **"Deploy"** (default settings are fine)
-5. After deploy, go to your project → **Settings → Environment Variables**
-6. Add each of these one by one:
-
-   | Key | Value |
-   |-----|-------|
-   | `GOOGLE_SHEET_ID` | your sheet ID from Step 1 |
-   | `GOOGLE_API_KEY` | your API key from Step 6 |
-   | `GOOGLE_CLIENT_ID` | your client ID from Step 4 |
-   | `GOOGLE_CLIENT_SECRET` | your client secret from Step 4 |
-   | `GOOGLE_REFRESH_TOKEN` | your refresh token from Step 5 |
-
-7. After adding all variables, go to **Deployments → Redeploy** (so Vercel picks up the new env vars)
+6. Go to **Deployments → Redeploy** so Vercel picks up the new variables
 
 ---
 
-### STEP 9 — Done! 🎉
+### Step 8 — Done 🎉
 
 Your vault is live at:
 ```
 https://your-project-name.vercel.app
 ```
 
-Open it from any device — phone, laptop, anywhere. All links sync instantly via Google Sheets.
+Bookmark it, add it to your home screen, and save away.
 
 ---
 
-## ⌨️ How to use the vault
+## ⌨️ How to Use
 
 | Action | How |
 |--------|-----|
@@ -177,23 +168,16 @@ Open it from any device — phone, laptop, anywhere. All links sync instantly vi
 
 ---
 
-## 🔒 Security notes
+## 🔒 Security
 
-- Your API keys live in **Vercel's environment variables** — never in the code
+- All API keys live in **Vercel environment variables** — never in the source code
 - Your Google Sheet can be **private** — only your OAuth credentials can access it
-- The `.env` file is in `.gitignore` — never pushed to GitHub
+- The `.env` file is in `.gitignore` and will never be pushed to GitHub
 - The serverless function acts as a **middleman** — the browser never sees your keys
 
 ---
 
-## 🔮 Future: AI Summarizer (v2)
-
-Planned: a Claude API-powered chatbot panel where you can ask questions about your saved links.
-Example: *"What AI tools have I saved?"* or *"Summarize the note on this link."*
-
----
-
-## 📦 Tech stack
+## 🛠️ Tech Stack
 
 | Layer | Tech |
 |-------|------|
@@ -202,4 +186,18 @@ Example: *"What AI tools have I saved?"* or *"Summarize the note on this link."*
 | Database | Google Sheets (private) |
 | Hosting | Vercel (free tier) |
 | Fonts | VT323 via Google Fonts |
-| Style | Windows 95 retro UI with emoji icons |
+| Style | Windows 95 retro UI |
+
+---
+
+## 🔮 Planned (v2)
+
+- Claude AI panel — ask questions about your saved links (*"What tools have I saved?"*)
+- Bulk import from browser bookmarks
+- Link thumbnails / favicons
+
+---
+
+## 📄 License
+
+MIT — do whatever you want with it.
