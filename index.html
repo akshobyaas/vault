@@ -7,11 +7,11 @@
   <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { height: 100%; }
+    html, body { height: 100%; overflow: hidden; }
     body {
       font-family: 'VT323', monospace;
       background: #008080;
-      min-height: 100vh;
+      height: 100vh;
       display: flex;
       flex-direction: column;
       font-size: 16px;
@@ -43,13 +43,16 @@
       flex: 1; padding: 8px;
       display: flex; align-items: flex-start; justify-content: center;
       padding-bottom: 48px;
+      overflow: hidden;
+      height: calc(100vh - 40px);
     }
 
     /* ── Main Window ── */
     #main-window {
       background: #c0c0c0; width: 100%; max-width: 1200px;
-      min-height: calc(100vh - 60px);
+      height: 100%;
       display: flex; flex-direction: column;
+      overflow: hidden;
     }
 
     /* ── Title Bar ── */
@@ -95,7 +98,7 @@
     #addr-field { flex: 1; font-size: 15px; }
 
     /* ── Main Area ── */
-    .main-area { display: flex; flex: 1; min-height: 300px; }
+    .main-area { display: flex; flex: 1; overflow: hidden; min-height: 0; }
 
     /* ── Sidebar ── */
     #sidebar {
@@ -104,6 +107,7 @@
       border-right: 2px solid #808080;
       padding: 4px; overflow-y: auto;
       transition: width 0.2s;
+      height: 100%;
     }
     .sidebar-title { font-size: 13px; color: #000080; padding: 2px 4px; margin-bottom: 2px; border-bottom: 1px solid #808080; }
     .cat-folder {
@@ -141,7 +145,7 @@
     /* ── Content ── */
     #content {
       flex: 1; background: #fff; padding: 10px;
-      overflow-y: auto; position: relative;
+      overflow-y: auto; overflow-x: hidden; position: relative;
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
       gap: 8px; align-content: start;
@@ -320,8 +324,8 @@
        MOBILE — S26 Ultra (~412px)
        ════════════════════════════════ */
     @media (max-width: 600px) {
-      #desktop { padding: 0; padding-bottom: 48px; }
-      #main-window { min-height: 100vh; }
+      #desktop { padding: 0; padding-bottom: 0; height: calc(100vh - 40px); }
+      #main-window { height: 100%; }
 
       /* Hide sidebar — replaced by bottom cat bar */
       #sidebar { display: none; }
