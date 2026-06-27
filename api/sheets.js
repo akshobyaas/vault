@@ -1,7 +1,17 @@
 // api/sheets.js — Vercel Serverless Function
 
+// Safe JSON fetch — throws a readable error if response is HTML
+async function safeFetch(url, opts = {}) {
+  const res = await fetch(url, opts);
+  const text = await res.text();
+  try {
+    return { ok: res.ok, status: res.status, data: JSON.parse(text) };
+  } catch {
+    throw new Error(`Non-JSON response (${res.status}) from ${url.split('?')[0]}: ${text.slice(0, 200)}`);
+  }
+}
+
 module.exports = async function handler(req, res) {
-  // Always return JSON, never HTML
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -9,13 +19,13 @@ module.exports = async function handler(req, res) {
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  // ── Check env vars are present ──
   const SHEET_ID      = process.env.GOOGLE_SHEET_ID;
   const CLIENT_ID     = process.env.GOOGLE_CLIENT_ID;
   const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
   const REFRESH_TOKEN = process.env.GOOGLE_REFRESH_TOKEN;
   const SHEET_NAME    = 'Vault';
 
+  // ── Check all env vars present ──
   if (!SHEET_ID || !CLIENT_ID || !CLIENT_SECRET || !REFRESH_TOKEN) {
     return res.status(500).json({
       error: 'Missing environment variables',
@@ -29,8 +39,8 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    // ── Get access token ──
-    const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+    // ── Get OAuth access token ──
+    const { data: tokenData } = await safeFetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
@@ -40,33 +50,45 @@ module.exports = async function handler(req, res) {
         grant_type:    'refresh_token',
       }),
     });
-    const tokenData = await tokenRes.json();
+
     if (!tokenData.access_token) {
       return res.status(500).json({ error: 'OAuth failed', detail: tokenData });
     }
     const token = tokenData.access_token;
 
+    // ── Helper: find sheet row by link ID ──
+    async function findRow(id) {
+      const { data } = await safeFetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${SHEET_NAME}!A:A`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const rows = data.values || [];
+      for (let i = 1; i < rows.length; i++) {
+        if (rows[i][0] === String(id)) return i + 1;
+      }
+      return null;
+    }
+
     // ── GET — fetch all links ──
     if (req.method === 'GET') {
-      const r = await fetch(
+      const { data } = await safeFetch(
         `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${SHEET_NAME}!A2:F`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      const d = await r.json();
-      if (d.error) return res.status(500).json({ error: 'Sheets error', detail: d.error });
-      const links = (d.values || []).map(row => ({
-        id: row[0]||'', title: row[1]||'', url: row[2]||'',
-        cat: row[3]||'Other', note: row[4]||'', date: row[5]||'',
+      if (data.error) return res.status(500).json({ error: 'Sheets read error', detail: data.error });
+      const links = (data.values || []).map(r => ({
+        id: r[0]||'', title: r[1]||'', url: r[2]||'',
+        cat: r[3]||'Other', note: r[4]||'', date: r[5]||'',
       }));
       return res.status(200).json({ success: true, links });
     }
 
-    // ── POST — add link ──
+    // ── POST — add new link ──
     if (req.method === 'POST') {
       const link = req.body;
       if (!link?.title || !link?.url) return res.status(400).json({ error: 'Title and URL required' });
       const row = [link.id || String(Date.now()), link.title, link.url, link.cat||'Other', link.note||'', link.date||new Date().toISOString()];
-      const r = await fetch(
+      const { data } = await safeFetch(
         `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${SHEET_NAME}!A:F:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
         {
           method: 'POST',
@@ -74,33 +96,18 @@ module.exports = async function handler(req, res) {
           body: JSON.stringify({ values: [row] }),
         }
       );
-      const d = await r.json();
-      if (d.error) return res.status(500).json({ error: 'Sheets error', detail: d.error });
+      if (data.error) return res.status(500).json({ error: 'Sheets write error', detail: data.error });
       return res.status(200).json({ success: true });
     }
 
-    // ── Find row by ID helper ──
-    async function findRow(id) {
-      const r = await fetch(
-        `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${SHEET_NAME}!A:A`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      const d = await r.json();
-      const rows = d.values || [];
-      for (let i = 1; i < rows.length; i++) {
-        if (rows[i][0] === String(id)) return i + 1;
-      }
-      return null;
-    }
-
-    // ── PUT — update link ──
+    // ── PUT — update existing link ──
     if (req.method === 'PUT') {
       const link = req.body;
       if (!link?.id) return res.status(400).json({ error: 'ID required' });
       const rowNum = await findRow(link.id);
       if (!rowNum) return res.status(404).json({ error: 'Link not found' });
       const row = [link.id, link.title, link.url, link.cat||'Other', link.note||'', link.date||new Date().toISOString()];
-      const r = await fetch(
+      const { data } = await safeFetch(
         `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${SHEET_NAME}!A${rowNum}:F${rowNum}?valueInputOption=RAW`,
         {
           method: 'PUT',
@@ -108,8 +115,7 @@ module.exports = async function handler(req, res) {
           body: JSON.stringify({ values: [row] }),
         }
       );
-      const d = await r.json();
-      if (d.error) return res.status(500).json({ error: 'Sheets error', detail: d.error });
+      if (data.error) return res.status(500).json({ error: 'Sheets update error', detail: data.error });
       return res.status(200).json({ success: true });
     }
 
@@ -119,16 +125,13 @@ module.exports = async function handler(req, res) {
       if (!id) return res.status(400).json({ error: 'ID required' });
       const rowNum = await findRow(id);
       if (!rowNum) return res.status(404).json({ error: 'Link not found' });
-
-      const metaR = await fetch(
+      const { data: meta } = await safeFetch(
         `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      const meta = await metaR.json();
       const sheet = meta.sheets?.find(s => s.properties.title === SHEET_NAME);
       if (!sheet) return res.status(500).json({ error: `Sheet tab "${SHEET_NAME}" not found` });
-
-      const r = await fetch(
+      const { data } = await safeFetch(
         `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}:batchUpdate`,
         {
           method: 'POST',
@@ -143,14 +146,13 @@ module.exports = async function handler(req, res) {
           }),
         }
       );
-      const d = await r.json();
-      if (d.error) return res.status(500).json({ error: 'Sheets error', detail: d.error });
+      if (data.error) return res.status(500).json({ error: 'Sheets delete error', detail: data.error });
       return res.status(200).json({ success: true });
     }
 
     return res.status(405).json({ error: 'Method not allowed' });
 
   } catch (err) {
-    return res.status(500).json({ error: err.message || 'Unknown error', stack: err.stack });
+    return res.status(500).json({ error: err.message });
   }
 };
