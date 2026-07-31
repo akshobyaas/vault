@@ -12,6 +12,7 @@
       font-family: 'VT323', monospace;
       background: #008080;
       height: 100vh;
+      height: 100dvh;
       display: flex;
       flex-direction: column;
       font-size: 16px;
@@ -35,7 +36,7 @@
       border-top: 2px solid #808080; border-left: 2px solid #808080;
       border-right: 2px solid #fff; border-bottom: 2px solid #fff;
       padding: 4px 6px; color: #000; outline: none;
-      -webkit-appearance: none; border-radius: 0;
+      -webkit-appearance: none; appearance: none; border-radius: 0;
     }
 
     /* ── Desktop wrapper ── */
@@ -45,6 +46,7 @@
       padding-bottom: 48px;
       overflow: hidden;
       height: calc(100vh - 40px);
+      height: calc(100dvh - 40px);
     }
 
     /* ── Main Window ── */
@@ -199,6 +201,8 @@
       border-right: 2px solid #fff; border-bottom: 2px solid #fff;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
+    .hidden { display: none; }
+    .help-body { font-size: 17px; line-height: 2; color: #000; }
     #status-count { min-width: 100px; }
     #status-selected { flex: 1; }
     #status-sync { min-width: 110px; }
@@ -324,7 +328,7 @@
        MOBILE — S26 Ultra (~412px)
        ════════════════════════════════ */
     @media (max-width: 600px) {
-      #desktop { padding: 0; padding-bottom: 0; height: calc(100vh - 40px); }
+      #desktop { padding: 0; padding-bottom: 0; height: calc(100vh - 40px); height: calc(100dvh - 40px); }
       #main-window { height: 100%; }
 
       /* Hide sidebar — replaced by bottom cat bar */
@@ -379,7 +383,7 @@
       <div class="titlebar-left">
         <span>🗂️</span>
         <span class="title-text">MY VAULT — Personal Link Directory</span>
-        <span style="display:none" id="title-short">MY VAULT</span>
+        <span class="hidden" id="title-short">MY VAULT</span>
       </div>
       <div class="winbtns">
         <div class="winbtn" title="Minimize">_</div>
@@ -400,13 +404,13 @@
       <button class="btn" id="toolbar-new-btn" onclick="openAdd()">📄 New</button>
       <button class="btn" onclick="refreshLinks()">🔄</button>
       <div class="sep"></div>
-      <input id="search-input" type="text" placeholder="🔍 Search..." oninput="renderContent()" />
+      <input id="search-input" type="text" placeholder="🔍 Search..." aria-label="Search links" oninput="renderContent()" />
     </div>
 
     <!-- Address Bar -->
     <div class="addrbar">
       <span>Category:</span>
-      <input id="addr-field" readonly value="All Links" />
+      <input id="addr-field" readonly aria-label="Current category" value="All Links" />
     </div>
 
     <!-- Main Area -->
@@ -435,7 +439,7 @@
     <!-- Status Bar -->
     <div class="statusbar">
       <div class="status-pane" id="status-count">0 objects</div>
-      <div class="status-pane" id="status-selected" style="flex:1">Select a link</div>
+      <div class="status-pane" id="status-selected">Select a link</div>
       <div class="status-pane" id="status-sync">✅ Synced</div>
     </div>
 
@@ -512,7 +516,7 @@
       <div class="titlebar-left"><span>❓</span> Help — My Vault</div>
       <div class="winbtns"><div class="winbtn" onclick="closeHelp()">✕</div></div>
     </div>
-    <div class="dialog-body" style="font-size:17px;line-height:2;color:#000">
+    <div class="dialog-body help-body">
       <b>MY VAULT</b><br><br>
       📄 <b>New Link</b> — Add any URL<br>
       🔍 <b>Search</b> — Real-time search<br>
