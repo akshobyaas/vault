@@ -681,18 +681,29 @@
   // ── Load both links and prompts ──
   async function refreshAll() {
     setLoading(true); setSyncStatus('🔄 Syncing...');
-    try {
-      const [linkData, promptData] = await Promise.all([
-        apiFetch('GET', 'links'),
-        apiFetch('GET', 'prompts'),
-      ]);
-      links = linkData.links || [];
-      prompts = promptData.prompts || [];
-      renderSidebar(); renderCatBar(); renderContent();
-      setSyncStatus('✅ Synced');
-    } catch (err) {
-      showToast('⚠️ ' + err.message); setSyncStatus('❌ Failed');
-    } finally { setLoading(false); }
+    const [linkResult, promptResult] = await Promise.allSettled([
+      apiFetch('GET', 'links'),
+      apiFetch('GET', 'prompts'),
+    ]);
+
+    if (linkResult.status === 'fulfilled') {
+      links = linkResult.value.links || [];
+    } else {
+      showToast('⚠️ Links: ' + linkResult.reason.message);
+    }
+
+    if (promptResult.status === 'fulfilled') {
+      prompts = promptResult.value.prompts || [];
+    } else {
+      // Don't toast this on every load if the Prompts tab just doesn't exist yet —
+      // only surface it if we're actually in Prompts mode looking at it.
+      if (mode === 'prompts') showToast('⚠️ Prompts: ' + promptResult.reason.message);
+      prompts = prompts || [];
+    }
+
+    renderSidebar(); renderCatBar(); renderContent();
+    setSyncStatus(linkResult.status === 'fulfilled' ? '✅ Synced' : '❌ Failed');
+    setLoading(false);
   }
 
   // ── Mode switch ──
