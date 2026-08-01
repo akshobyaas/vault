@@ -99,6 +99,35 @@
     }
     #addr-field { flex: 1; font-size: 15px; }
 
+    /* ── Mode tabs (Links / Prompts) ── */
+    #mode-tabs {
+      display: flex; gap: 2px; background: #808080;
+      padding: 3px 6px 0; border-bottom: 1px solid #808080;
+    }
+    .mode-tab {
+      padding: 5px 14px; font-size: 15px; cursor: pointer;
+      background: #c0c0c0; border: 2px solid; border-color: #fff #808080 #808080 #fff;
+      color: #000; touch-action: manipulation;
+    }
+    .mode-tab.active {
+      background: #e8e8e8; border-bottom-color: #e8e8e8;
+      color: #000080; font-weight: bold;
+    }
+    .version-badge {
+      font-size: 11px; background: #000080; color: #fff;
+      padding: 0 4px; border-radius: 2px; margin-left: 4px;
+    }
+    .status-flag { font-size: 11px; padding: 0 4px; margin-left: 4px; }
+    .status-flag.deprecated { background: #808080; color: #fff; }
+    .status-flag.draft { background: #ffff80; color: #000; }
+
+    /* ── Utility classes (replace inline styles) ── */
+    .hidden { display: none !important; }
+    .prompt-textarea-tall { min-height: 120px; }
+    .upload-btn { margin: -4px 0 8px; }
+    .result-preview { max-width: 100%; max-height: 160px; border: 1px solid #808080; margin: 4px 0 8px; }
+    .result-thumb { width: 36px; height: 36px; object-fit: cover; border: 1px solid #808080; }
+
     /* ── Main Area ── */
     .main-area { display: flex; flex: 1; overflow: hidden; min-height: 0; }
 
@@ -399,12 +428,18 @@
       <span onclick="showHelp()"><u>H</u>elp</span>
     </div>
 
+    <!-- Mode Tabs -->
+    <div id="mode-tabs">
+      <div class="mode-tab active" id="tab-links" onclick="setMode('links')">🔗 LINKS</div>
+      <div class="mode-tab" id="tab-prompts" onclick="setMode('prompts')">📝 PROMPTS</div>
+    </div>
+
     <!-- Toolbar -->
     <div class="toolbar">
       <button class="btn" id="toolbar-new-btn" onclick="openAdd()">📄 New</button>
-      <button class="btn" onclick="refreshLinks()">🔄</button>
+      <button class="btn" onclick="refreshAll()">🔄</button>
       <div class="sep"></div>
-      <input id="search-input" type="text" placeholder="🔍 Search..." aria-label="Search links" oninput="renderContent()" />
+      <input id="search-input" type="text" placeholder="🔍 Search..." aria-label="Search" oninput="renderContent()" />
     </div>
 
     <!-- Address Bar -->
@@ -417,7 +452,7 @@
     <div class="main-area">
       <!-- Sidebar (tablet + desktop) -->
       <div id="sidebar">
-        <div class="sidebar-title">CATEGORIES</div>
+        <div class="sidebar-title" id="sidebar-title">CATEGORIES</div>
         <div id="cat-list"></div>
       </div>
 
@@ -427,7 +462,7 @@
           <div class="spinner"></div>
           <span>Loading vault...</span>
         </div>
-        <div id="empty-state">No links found.<br>Tap ➕ to add one!</div>
+        <div id="empty-state">Nothing here yet.<br>Tap ➕ to add one!</div>
       </div>
     </div>
 
@@ -500,12 +535,78 @@
   </div>
 </div>
 
+<!-- Add / Edit Prompt Dialog -->
+<div class="modal-overlay" id="prompt-modal">
+  <div class="dialog">
+    <div class="titlebar">
+      <div class="titlebar-left"><span>📝</span><span id="prompt-modal-title">Add New Prompt</span></div>
+      <div class="winbtns"><div class="winbtn" onclick="closePromptModal()">✕</div></div>
+    </div>
+    <div class="dialog-body">
+      <div class="field-row">
+        <label class="field-lbl" for="p-title">Title:</label>
+        <input id="p-title" type="text" placeholder="e.g. React Refactor — Extract Hooks" autocomplete="off" />
+      </div>
+      <div class="field-row">
+        <label class="field-lbl" for="p-category">Category:</label>
+        <select id="p-category">
+          <option value="Image Generation">🎨 Image Generation</option>
+          <option value="Image Editing">🖌️ Image Editing</option>
+          <option value="Coding">💻 Coding</option>
+          <option value="Writing">✍️ Writing</option>
+          <option value="Research">🔬 Research</option>
+          <option value="Planning">🗓️ Planning</option>
+          <option value="Other">📦 Other</option>
+        </select>
+      </div>
+      <div class="field-row">
+        <label class="field-lbl" for="p-tool">Tool / Model:</label>
+        <input id="p-tool" type="text" placeholder="e.g. Claude, Midjourney v6" autocomplete="off" />
+      </div>
+      <div class="field-row">
+        <label class="field-lbl" for="p-tags">Tags:</label>
+        <input id="p-tags" type="text" placeholder="comma, separated, tags" autocomplete="off" />
+      </div>
+      <div class="field-row">
+        <label class="field-lbl" for="p-status">Status:</label>
+        <select id="p-status">
+          <option value="active">✅ Active</option>
+          <option value="draft">📝 Draft</option>
+          <option value="experimental">🧪 Experimental</option>
+          <option value="deprecated">🗄️ Deprecated</option>
+        </select>
+      </div>
+      <div class="field-row">
+        <label class="field-lbl" for="p-prompt">Prompt:</label>
+        <textarea id="p-prompt" class="prompt-textarea-tall" placeholder="The full prompt text. Use {{variable}} for placeholders."></textarea>
+      </div>
+      <div class="field-row">
+        <label class="field-lbl" for="p-result">Result:</label>
+        <textarea id="p-result" placeholder="Paste an image URL, or upload a file below. For non-image prompts, describe the output instead." oninput="updateResultPreview()"></textarea>
+      </div>
+      <input type="file" id="p-result-file" class="hidden" accept="image/*" onchange="handleImageUpload(event)" />
+      <button type="button" class="btn upload-btn" id="p-upload-btn" onclick="document.getElementById('p-result-file').click()">📤 Upload Image</button>
+      <img id="p-result-preview" class="result-preview hidden" />
+      <div class="field-row">
+        <label class="field-lbl" for="p-notes">Notes:</label>
+        <textarea id="p-notes" placeholder="Gotchas, example output, version notes..."></textarea>
+      </div>
+      <div class="dialog-btns">
+        <button class="btn" id="save-prompt-btn" onclick="savePrompt()">✔ OK</button>
+        <button class="btn hidden" id="save-version-btn" onclick="savePrompt(true)">🔁 Save as New Version</button>
+        <button class="btn" onclick="closePromptModal()">✖ Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Context Menu -->
 <div id="ctx-menu">
-  <div class="ctx-item" onclick="ctxOpen()">🌐 Open Link</div>
-  <div class="ctx-item" onclick="ctxCopy()">📋 Copy URL</div>
+  <div class="ctx-item" id="ctx-open" onclick="ctxOpen()">🌐 Open Link</div>
+  <div class="ctx-item" id="ctx-copy" onclick="ctxCopy()">📋 Copy URL</div>
   <div class="ctx-sep"></div>
   <div class="ctx-item" onclick="ctxEdit()">✏️ Edit</div>
+  <div class="ctx-item hidden" id="ctx-newver" onclick="ctxNewVersion()">🔁 Save as New Version</div>
   <div class="ctx-item" onclick="ctxDelete()">🗑️ Delete</div>
 </div>
 
@@ -518,12 +619,15 @@
     </div>
     <div class="dialog-body help-body">
       <b>MY VAULT</b><br><br>
-      📄 <b>New Link</b> — Add any URL<br>
-      🔍 <b>Search</b> — Real-time search<br>
+      🔗 <b>Links / 📝 Prompts</b> — Switch modes at the top<br>
+      📄 <b>New</b> — Add a link or prompt (depends on mode)<br>
+      🔍 <b>Search</b> — Real-time search across titles, tags &amp; text<br>
       📁 <b>Sidebar/bar</b> — Filter by category<br>
-      🖱️ <b>Right-click / long-press</b> — Open, copy, edit, delete<br>
+      🖱️ <b>Right-click / long-press</b> — Open/copy, edit, new version, delete<br>
+      🖼️ <b>Result</b> — Paste an image URL or describe the output; image links show as a thumbnail<br>
+      🔁 <b>Save as New Version</b> — Keeps the old prompt, bumps the version<br>
       🔄 <b>Refresh</b> — Reload from Google Sheets<br><br>
-      <i>Data stored in your private Google Sheet.</i>
+      <i>Data stored in your private Google Sheet (Vault + Prompts tabs).</i>
       <div class="dialog-btns"><button class="btn" onclick="closeHelp()">✔ OK</button></div>
     </div>
   </div>
@@ -539,7 +643,15 @@
   };
   const ALL_CATS = Object.keys(CAT_EMOJI);
 
-  let links = [], activeCat = 'All', editId = null, ctxId = null, selectedId = null;
+  const PROMPT_CAT_EMOJI = {
+    'Image Generation':'🎨','Image Editing':'🖌️','Coding':'💻',
+    'Writing':'✍️','Research':'🔬','Planning':'🗓️','Other':'📦'
+  };
+  const ALL_PROMPT_CATS = Object.keys(PROMPT_CAT_EMOJI);
+
+  let mode = 'links'; // 'links' | 'prompts'
+  let links = [], prompts = [];
+  let activeCat = 'All', editId = null, ctxId = null, selectedId = null;
   let longPressTimer = null;
 
   // ── Clock ──
@@ -552,23 +664,30 @@
   updateClock(); setInterval(updateClock, 10000);
 
   // ── API ──
-  async function apiFetch(method, body, queryId) {
+  async function apiFetch(method, type, body, queryId) {
     let url = '/api/sheets';
-    if (method === 'DELETE' && queryId) url += '?id=' + queryId;
+    const params = [];
+    if (method === 'GET' || method === 'DELETE') params.push('type=' + type);
+    if (method === 'DELETE' && queryId) params.push('id=' + queryId);
+    if (params.length) url += '?' + params.join('&');
     const opts = { method, headers: { 'Content-Type': 'application/json' } };
-    if (body) opts.body = JSON.stringify(body);
+    if (body) opts.body = JSON.stringify({ ...body, type });
     const res = await fetch(url, opts);
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'API error');
     return data;
   }
 
-  // ── Load links ──
-  async function refreshLinks() {
+  // ── Load both links and prompts ──
+  async function refreshAll() {
     setLoading(true); setSyncStatus('🔄 Syncing...');
     try {
-      const data = await apiFetch('GET');
-      links = data.links || [];
+      const [linkData, promptData] = await Promise.all([
+        apiFetch('GET', 'links'),
+        apiFetch('GET', 'prompts'),
+      ]);
+      links = linkData.links || [];
+      prompts = promptData.prompts || [];
       renderSidebar(); renderCatBar(); renderContent();
       setSyncStatus('✅ Synced');
     } catch (err) {
@@ -576,22 +695,40 @@
     } finally { setLoading(false); }
   }
 
+  // ── Mode switch ──
+  function setMode(m) {
+    mode = m; activeCat = 'All'; selectedId = null;
+    document.getElementById('tab-links').classList.toggle('active', m === 'links');
+    document.getElementById('tab-prompts').classList.toggle('active', m === 'prompts');
+    document.getElementById('sidebar-title').textContent = m === 'links' ? 'CATEGORIES' : 'PROMPT CATEGORIES';
+    document.getElementById('search-input').value = '';
+    document.getElementById('toolbar-new-btn').textContent = m === 'links' ? '📄 New' : '📝 New';
+    renderSidebar(); renderCatBar(); renderContent();
+  }
+
+  function curEmojiMap() { return mode === 'links' ? CAT_EMOJI : PROMPT_CAT_EMOJI; }
+  function curCats()     { return mode === 'links' ? ALL_CATS : ALL_PROMPT_CATS; }
+  function curItems()    { return mode === 'links' ? links : prompts; }
+  function catField()    { return mode === 'links' ? 'cat' : 'category'; }
+
   // ── Sidebar (desktop/tablet) ──
   function renderSidebar() {
-    const cats = ['All', ...ALL_CATS.filter(c => links.some(l => l.cat === c))];
+    const emojiMap = curEmojiMap(), field = catField();
+    const cats = ['All', ...curCats().filter(c => curItems().some(l => l[field] === c))];
     document.getElementById('cat-list').innerHTML = cats.map(c =>
       `<div class="cat-folder${c===activeCat?' active':''}" onclick="setCat('${c}')">
-        ${c==='All'?'🗂️':CAT_EMOJI[c]} ${c}
+        ${c==='All'?'🗂️':emojiMap[c]} ${c}
       </div>`
     ).join('');
   }
 
   // ── Category chips (mobile) ──
   function renderCatBar() {
-    const cats = ['All', ...ALL_CATS.filter(c => links.some(l => l.cat === c))];
+    const emojiMap = curEmojiMap(), field = catField();
+    const cats = ['All', ...curCats().filter(c => curItems().some(l => l[field] === c))];
     document.getElementById('cat-chips').innerHTML = cats.map(c =>
       `<span class="cat-chip${c===activeCat?' active':''}" onclick="setCat('${c}')">
-        ${c==='All'?'🗂️':CAT_EMOJI[c]} ${c}
+        ${c==='All'?'🗂️':emojiMap[c]} ${c}
       </span>`
     ).join('');
   }
@@ -599,17 +736,24 @@
   function setCat(c) {
     activeCat = c; selectedId = null;
     renderSidebar(); renderCatBar(); renderContent();
+    const emojiMap = curEmojiMap();
+    const label = mode === 'links' ? 'Links' : 'Prompts';
     document.getElementById('addr-field').value =
-      c === 'All' ? `All Links (${links.length} items)` : `${CAT_EMOJI[c]} ${c}`;
+      c === 'All' ? `All ${label} (${curItems().length} items)` : `${emojiMap[c]} ${c}`;
   }
 
   // ── Content ──
   function renderContent() {
     const q = document.getElementById('search-input').value.toLowerCase().trim();
-    const filtered = links.filter(l => {
-      const matchCat = activeCat === 'All' || l.cat === activeCat;
-      const matchQ = !q || l.title.toLowerCase().includes(q)
-        || l.url.toLowerCase().includes(q) || (l.note||'').toLowerCase().includes(q);
+    const field = catField(), emojiMap = curEmojiMap();
+    const filtered = curItems().filter(l => {
+      const matchCat = activeCat === 'All' || l[field] === activeCat;
+      const matchQ = !q ||
+        l.title.toLowerCase().includes(q) ||
+        (mode === 'links'
+          ? (l.url.toLowerCase().includes(q) || (l.note||'').toLowerCase().includes(q))
+          : ((l.tags||'').toLowerCase().includes(q) || (l.tool||'').toLowerCase().includes(q)
+             || (l.prompt||'').toLowerCase().includes(q) || (l.notes||'').toLowerCase().includes(q)));
       return matchCat && matchQ;
     });
     const content = document.getElementById('content');
@@ -622,15 +766,25 @@
         const div = document.createElement('div');
         div.className = 'link-icon' + (l.id === selectedId ? ' selected' : '');
         div.dataset.id = l.id;
-        div.innerHTML = `<div class="emoji-box">${CAT_EMOJI[l.cat]||'🔖'}</div>
-          <div class="icon-name">${escHtml(l.title)}</div>`;
+        const badges = mode === 'prompts'
+          ? `<span class="version-badge">v${l.version||1}</span>` +
+            (l.status && l.status !== 'active' ? `<span class="status-flag ${l.status}">${l.status}</span>` : '')
+          : '';
+        const hasImg = mode === 'prompts' && isImageUrl(l.result);
+        const iconHtml = hasImg
+          ? `<img src="${escHtml(l.result)}" class="result-thumb" />`
+          : (emojiMap[l[field]]||'🔖');
+        div.innerHTML = `<div class="emoji-box">${iconHtml}</div>
+          <div class="icon-name">${escHtml(l.title)}${badges}</div>`;
 
-        // Desktop: click to select, dblclick to open, rightclick for menu
+        const primaryAction = () => mode === 'links' ? openUrl(l.url) : copyPrompt(l.id);
+
+        // Desktop: click to select, dblclick to open/copy, rightclick for menu
         div.addEventListener('click', () => selectLink(l.id));
-        div.addEventListener('dblclick', () => openUrl(l.url));
+        div.addEventListener('dblclick', primaryAction);
         div.addEventListener('contextmenu', e => { e.preventDefault(); showCtx(e, l.id); });
 
-        // Mobile: tap to open, long-press for context menu
+        // Mobile: tap to open/copy, long-press for context menu
         div.addEventListener('touchstart', e => {
           longPressTimer = setTimeout(() => {
             longPressTimer = null;
@@ -641,7 +795,7 @@
           if (longPressTimer) {
             clearTimeout(longPressTimer);
             longPressTimer = null;
-            openUrl(l.url); // short tap = open
+            primaryAction(); // short tap = open link / copy prompt
           }
         });
         div.addEventListener('touchmove', () => {
@@ -656,8 +810,15 @@
     updateSelectedStatus();
   }
 
+  function copyPrompt(id) {
+    const p = prompts.find(x => x.id === id); if (!p) return;
+    navigator.clipboard.writeText(p.prompt);
+    showToast('📋 Prompt copied!');
+  }
+
   function showCtxTouch(id) {
     ctxId = id;
+    showCtxTouchMode(id);
     const menu = document.getElementById('ctx-menu');
     menu.style.left = '50%';
     menu.style.top = '40%';
@@ -674,9 +835,11 @@
   }
 
   function updateSelectedStatus() {
-    const l = links.find(x => x.id === selectedId);
-    document.getElementById('status-selected').textContent = l
-      ? `${l.url}${l.note ? ' | ' + l.note : ''}` : 'Select a link';
+    const l = curItems().find(x => x.id === selectedId);
+    if (!l) { document.getElementById('status-selected').textContent = mode === 'links' ? 'Select a link' : 'Select a prompt'; return; }
+    document.getElementById('status-selected').textContent = mode === 'links'
+      ? `${l.url}${l.note ? ' | ' + l.note : ''}`
+      : `${l.tool ? l.tool + ' | ' : ''}${(l.tags||'').split(',').filter(Boolean).join(', ') || 'no tags'}`;
   }
 
   function openUrl(url) { window.open(url, '_blank'); }
@@ -684,6 +847,7 @@
 
   // ── Modal ──
   function openAdd() {
+    if (mode === 'prompts') return openPromptAdd();
     editId = null;
     document.getElementById('modal-title').textContent = 'Add New Link';
     ['m-title','m-url','m-note'].forEach(id => document.getElementById(id).value = '');
@@ -693,6 +857,7 @@
   }
 
   function openEdit(id) {
+    if (mode === 'prompts') return openPromptEdit(id);
     const l = links.find(x => x.id === id); if (!l) return;
     editId = id;
     document.getElementById('modal-title').textContent = 'Edit Link';
@@ -705,6 +870,166 @@
   }
 
   function closeModal() { document.getElementById('link-modal').classList.remove('open'); }
+
+  function isImageUrl(s) {
+    if (!s) return false;
+    const t = s.trim();
+    if (!/^https?:\/\//i.test(t)) return false;
+    return /\.(png|jpe?g|gif|webp|avif)(\?.*)?$/i.test(t)
+      || /(imgur\.com|cdn\.discordapp\.com|media\.discordapp\.net|drive\.google\.com\/uc|lh3\.googleusercontent\.com|images\.unsplash\.com)/i.test(t);
+  }
+
+  // Resize/compress client-side before upload so we stay comfortably under the
+  // serverless function's request body limit.
+  function resizeImageFile(file, maxDim = 1280, quality = 0.82) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          let { width, height } = img;
+          if (width > maxDim || height > maxDim) {
+            const scale = maxDim / Math.max(width, height);
+            width = Math.round(width * scale); height = Math.round(height * scale);
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width; canvas.height = height;
+          canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL('image/jpeg', quality);
+          resolve({ base64: dataUrl.split(',')[1], mimeType: 'image/jpeg' });
+        };
+        img.onerror = () => reject(new Error('Could not read image'));
+        img.src = reader.result;
+      };
+      reader.onerror = () => reject(new Error('Could not read file'));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function handleImageUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const btn = document.getElementById('p-upload-btn');
+    const origLabel = btn.textContent;
+    btn.disabled = true; btn.textContent = '⏳ Uploading...';
+    setSyncStatus('🔄 Uploading image...');
+    try {
+      const { base64, mimeType } = await resizeImageFile(file);
+      const res = await fetch('/api/sheets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'upload', filename: file.name, mimeType, data: base64 }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Upload failed');
+      document.getElementById('p-result').value = json.url;
+      updateResultPreview();
+      showToast('✔ Image uploaded!');
+      setSyncStatus('✅ Synced');
+    } catch (err) {
+      showToast('⚠️ ' + err.message);
+      setSyncStatus('❌ Failed');
+    } finally {
+      btn.disabled = false; btn.textContent = origLabel;
+      e.target.value = '';
+    }
+  }
+
+  function updateResultPreview() {
+    const val = document.getElementById('p-result').value.trim();
+    const img = document.getElementById('p-result-preview');
+    if (isImageUrl(val)) { img.src = val; img.classList.remove('hidden'); }
+    else { img.classList.add('hidden'); img.src = ''; }
+  }
+
+  // ── Prompt Modal ──
+  function openPromptAdd() {
+    editId = null;
+    document.getElementById('prompt-modal-title').textContent = 'Add New Prompt';
+    ['p-title','p-tool','p-tags','p-prompt','p-notes','p-result'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('p-category').value = 'Other';
+    document.getElementById('p-status').value = 'active';
+    document.getElementById('save-version-btn').classList.add('hidden');
+    document.getElementById('prompt-modal').classList.add('open');
+    updateResultPreview();
+    setTimeout(() => document.getElementById('p-title').focus(), 100);
+  }
+
+  function openPromptEdit(id) {
+    const p = prompts.find(x => x.id === id); if (!p) return;
+    editId = id;
+    document.getElementById('prompt-modal-title').textContent = `Edit Prompt (v${p.version||1})`;
+    document.getElementById('p-title').value = p.title;
+    document.getElementById('p-category').value = p.category;
+    document.getElementById('p-tool').value = p.tool || '';
+    document.getElementById('p-tags').value = p.tags || '';
+    document.getElementById('p-status').value = p.status || 'active';
+    document.getElementById('p-prompt').value = p.prompt || '';
+    document.getElementById('p-notes').value = p.notes || '';
+    document.getElementById('p-result').value = p.result || '';
+    document.getElementById('save-version-btn').classList.remove('hidden');
+    document.getElementById('prompt-modal').classList.add('open');
+    updateResultPreview();
+    setTimeout(() => document.getElementById('p-title').focus(), 100);
+  }
+
+  function closePromptModal() { document.getElementById('prompt-modal').classList.remove('open'); }
+
+  async function savePrompt(asNewVersion) {
+    const title = document.getElementById('p-title').value.trim();
+    const category = document.getElementById('p-category').value;
+    const tool = document.getElementById('p-tool').value.trim();
+    const tags = document.getElementById('p-tags').value.trim();
+    const status = document.getElementById('p-status').value;
+    const promptText = document.getElementById('p-prompt').value.trim();
+    const notes = document.getElementById('p-notes').value.trim();
+    const result = document.getElementById('p-result').value.trim();
+    if (!title || !promptText) { showToast('⚠️ Title and Prompt required!'); return; }
+
+    const btn = asNewVersion ? document.getElementById('save-version-btn') : document.getElementById('save-prompt-btn');
+    const origLabel = btn.textContent;
+    btn.disabled = true; btn.textContent = '⏳...';
+    setSyncStatus('🔄 Saving...');
+    try {
+      if (asNewVersion && editId) {
+        // Keep the old row as-is but mark it deprecated; create a fresh row for the new version.
+        const old = prompts.find(x => x.id === editId);
+        const deprecated = { ...old, status: 'deprecated' };
+        await apiFetch('PUT', 'prompts', deprecated);
+        const idxOld = prompts.findIndex(x => x.id === editId);
+        if (idxOld !== -1) prompts[idxOld] = deprecated;
+
+        const newItem = {
+          id: String(Date.now()), title, category, tool, tags, status: 'active',
+          version: (old.version || 1) + 1, prompt: promptText, notes, result,
+          date: new Date().toISOString(),
+        };
+        await apiFetch('POST', 'prompts', newItem);
+        prompts.push(newItem);
+        showToast('🔁 New version saved!');
+      } else if (editId) {
+        const item = { id: editId, title, category, tool, tags, status,
+          version: (prompts.find(x=>x.id===editId)?.version)||1,
+          prompt: promptText, notes, result, date: new Date().toISOString() };
+        await apiFetch('PUT', 'prompts', item);
+        const idx = prompts.findIndex(x => x.id === editId);
+        if (idx !== -1) prompts[idx] = item;
+        showToast('✔ Updated!');
+      } else {
+        const item = { id: String(Date.now()), title, category, tool, tags, status,
+          version: 1, prompt: promptText, notes, result, date: new Date().toISOString() };
+        await apiFetch('POST', 'prompts', item);
+        prompts.push(item);
+        showToast('✔ Saved!');
+      }
+      setSyncStatus('✅ Synced');
+      closePromptModal(); renderSidebar(); renderCatBar(); renderContent();
+    } catch (err) {
+      showToast('⚠️ ' + err.message); setSyncStatus('❌ Failed');
+    } finally {
+      btn.disabled = false; btn.textContent = origLabel;
+    }
+  }
 
   async function saveLink() {
     const title = document.getElementById('m-title').value.trim();
@@ -719,12 +1044,12 @@
     try {
       const link = { id: editId || String(Date.now()), title, url, cat, note, date: new Date().toISOString() };
       if (editId) {
-        await apiFetch('PUT', link);
+        await apiFetch('PUT', 'links', link);
         const idx = links.findIndex(x => x.id === editId);
         if (idx !== -1) links[idx] = link;
         showToast('✔ Updated!');
       } else {
-        await apiFetch('POST', link);
+        await apiFetch('POST', 'links', link);
         links.push(link);
         showToast('✔ Saved!');
       }
@@ -740,26 +1065,46 @@
   // ── Context Menu ──
   function showCtx(e, id) {
     ctxId = id; selectLink(id);
+    document.getElementById('ctx-open').classList.toggle('hidden', mode !== 'links');
+    document.getElementById('ctx-copy').textContent = mode === 'links' ? '📋 Copy URL' : '📋 Copy Prompt';
+    document.getElementById('ctx-newver').classList.toggle('hidden', mode !== 'prompts');
     const menu = document.getElementById('ctx-menu');
     menu.style.transform = '';
     menu.style.left = Math.min(e.clientX, window.innerWidth - 180) + 'px';
     menu.style.top  = Math.min(e.clientY, window.innerHeight - 170) + 'px';
     menu.classList.add('open');
   }
+  function showCtxTouchMode(id) {
+    document.getElementById('ctx-open').classList.toggle('hidden', mode !== 'links');
+    document.getElementById('ctx-copy').textContent = mode === 'links' ? '📋 Copy URL' : '📋 Copy Prompt';
+    document.getElementById('ctx-newver').classList.toggle('hidden', mode !== 'prompts');
+  }
   function hideCtx() {
     const m = document.getElementById('ctx-menu');
     m.classList.remove('open'); m.style.transform = '';
   }
   function ctxOpen()   { const l = links.find(x=>x.id===ctxId); if(l) openUrl(l.url); hideCtx(); }
-  function ctxCopy()   { const l = links.find(x=>x.id===ctxId); if(l){ navigator.clipboard.writeText(l.url); showToast('📋 Copied!'); } hideCtx(); }
+  function ctxCopy()   {
+    if (mode === 'links') {
+      const l = links.find(x=>x.id===ctxId);
+      if (l) { navigator.clipboard.writeText(l.url); showToast('📋 Copied!'); }
+    } else {
+      copyPrompt(ctxId);
+    }
+    hideCtx();
+  }
   function ctxEdit()   { openEdit(ctxId); hideCtx(); }
+  function ctxNewVersion() { openPromptEdit(ctxId); hideCtx();
+    setTimeout(() => document.getElementById('save-version-btn')?.focus(), 150);
+  }
   async function ctxDelete() {
-    const l = links.find(x=>x.id===ctxId);
+    const l = curItems().find(x=>x.id===ctxId);
     if (!l || !confirm(`Delete "${l.title}"?`)) { hideCtx(); return; }
     hideCtx(); setSyncStatus('🔄 Deleting...');
     try {
-      await apiFetch('DELETE', null, l.id);
-      links = links.filter(x=>x.id!==ctxId);
+      await apiFetch('DELETE', mode, null, l.id);
+      if (mode === 'links') links = links.filter(x=>x.id!==ctxId);
+      else prompts = prompts.filter(x=>x.id!==ctxId);
       if (selectedId===ctxId) selectedId=null;
       renderSidebar(); renderCatBar(); renderContent();
       showToast('🗑️ Deleted!'); setSyncStatus('✅ Synced');
@@ -782,14 +1127,17 @@
     if (!document.getElementById('ctx-menu').contains(e.target)) hideCtx();
   });
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { closeModal(); closeHelp(); hideCtx(); }
+    if (e.key === 'Escape') { closeModal(); closePromptModal(); closeHelp(); hideCtx(); }
     if ((e.ctrlKey||e.metaKey) && e.key==='n') { e.preventDefault(); openAdd(); }
   });
   document.getElementById('link-modal').addEventListener('keydown', e => {
     if (e.key==='Enter' && e.target.tagName!=='TEXTAREA') saveLink();
   });
+  document.getElementById('prompt-modal').addEventListener('keydown', e => {
+    if (e.key==='Enter' && e.target.tagName!=='TEXTAREA') savePrompt(false);
+  });
 
-  refreshLinks();
+  refreshAll();
 </script>
 </body>
 </html>
