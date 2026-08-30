@@ -55,6 +55,29 @@ const RESOURCES = {
     validate: (o) => o?.title && o?.prompt,
     validationMsg: 'Title and Prompt text required',
   },
+  rides: {
+    sheetName: 'Rides',
+    range: 'A2:H',
+    colRange: 'A:H',
+    // id, destination, link, car_km, car_min, bike_km, bike_min, date
+    toRow: (o) => [
+      o.id || String(Date.now()),
+      o.destination || '',
+      o.link || '',
+      o.car_km ?? '',
+      o.car_min ?? '',
+      o.bike_km ?? '',
+      o.bike_min ?? '',
+      o.date || new Date().toISOString(),
+    ],
+    fromRow: (r) => ({
+      id: r[0] || '', destination: r[1] || '', link: r[2] || '',
+      car_km: r[3] || '', car_min: r[4] || '', bike_km: r[5] || '', bike_min: r[6] || '',
+      date: r[7] || '',
+    }),
+    validate: (o) => o?.link,
+    validationMsg: 'Link required',
+  },
 };
 
 function getResource(req) {
@@ -93,7 +116,7 @@ module.exports = async function handler(req, res) {
   let type, cfg, SHEET_NAME;
   if (!isUpload) {
     const resource = getResource(req);
-    if (!resource) return res.status(400).json({ error: `Unknown type. Use "links" or "prompts".` });
+    if (!resource) return res.status(400).json({ error: `Unknown type. Use "links", "prompts", or "rides".` });
     ({ type, cfg } = resource);
     SHEET_NAME = cfg.sheetName;
   }

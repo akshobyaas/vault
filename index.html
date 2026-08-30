@@ -118,6 +118,26 @@
       padding: 0 4px; border-radius: 2px; margin-left: 4px;
     }
     .status-flag { font-size: 11px; padding: 0 4px; margin-left: 4px; }
+
+    /* ── Ride & Drive ── */
+    .ride-list { padding: 8px; }
+    .ride-row {
+      display: flex; align-items: center; gap: 10px;
+      background: #fff; border: 2px solid; border-color: #808080 #fff #fff #808080;
+      padding: 8px 10px; margin-bottom: 6px; cursor: pointer;
+    }
+    .ride-row.selected { background: #000080; color: #fff; }
+    .ride-row .ride-icon { font-size: 22px; }
+    .ride-row .ride-info { flex: 1; min-width: 0; }
+    .ride-row .ride-dest { font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ride-row .ride-stats { font-size: 13px; color: #444; }
+    .ride-row.selected .ride-stats { color: #ddd; }
+    .ride-result {
+      border: 2px solid; border-color: #808080 #fff #fff #808080;
+      background: #fff; padding: 10px; margin-top: 8px; font-size: 15px;
+    }
+    .ride-result .rr-line { display: flex; justify-content: space-between; padding: 3px 0; }
+    .ride-result .rr-err { color: #a00; font-size: 13px; }
     .status-flag.deprecated { background: #808080; color: #fff; }
     .status-flag.draft { background: #ffff80; color: #000; }
 
@@ -432,6 +452,7 @@
     <div id="mode-tabs">
       <div class="mode-tab active" id="tab-links" onclick="setMode('links')">🔗 LINKS</div>
       <div class="mode-tab" id="tab-prompts" onclick="setMode('prompts')">📝 PROMPTS</div>
+      <div class="mode-tab" id="tab-rides" onclick="setMode('rides')">🚗 RIDE</div>
     </div>
 
     <!-- Toolbar -->
@@ -535,6 +556,30 @@
   </div>
 </div>
 
+<!-- Add Ride Dialog -->
+<div class="modal-overlay" id="ride-modal">
+  <div class="dialog">
+    <div class="titlebar">
+      <div class="titlebar-left"><span>🚗</span><span>Ride &amp; Drive</span></div>
+      <div class="winbtns"><div class="winbtn" onclick="closeRideModal()">✕</div></div>
+    </div>
+    <div class="dialog-body">
+      <div class="field-row">
+        <label class="field-lbl" for="r-link">Maps link:</label>
+        <input id="r-link" type="text" placeholder="Paste a Google Maps link or place name" autocomplete="off" />
+      </div>
+      <div class="dialog-btns">
+        <button class="btn" id="r-calc-btn" onclick="calcRide()">📏 Calculate</button>
+      </div>
+      <div class="ride-result hidden" id="r-result"></div>
+      <div class="dialog-btns">
+        <button class="btn hidden" id="r-save-btn" onclick="saveRide()">✔ Save</button>
+        <button class="btn" onclick="closeRideModal()">✖ Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Add / Edit Prompt Dialog -->
 <div class="modal-overlay" id="prompt-modal">
   <div class="dialog">
@@ -605,7 +650,7 @@
   <div class="ctx-item" id="ctx-open" onclick="ctxOpen()">🌐 Open Link</div>
   <div class="ctx-item" id="ctx-copy" onclick="ctxCopy()">📋 Copy URL</div>
   <div class="ctx-sep"></div>
-  <div class="ctx-item" onclick="ctxEdit()">✏️ Edit</div>
+  <div class="ctx-item" id="ctx-edit" onclick="ctxEdit()">✏️ Edit</div>
   <div class="ctx-item hidden" id="ctx-newver" onclick="ctxNewVersion()">🔁 Save as New Version</div>
   <div class="ctx-item" onclick="ctxDelete()">🗑️ Delete</div>
 </div>
@@ -619,8 +664,8 @@
     </div>
     <div class="dialog-body help-body">
       <b>MY VAULT</b><br><br>
-      🔗 <b>Links / 📝 Prompts</b> — Switch modes at the top<br>
-      📄 <b>New</b> — Add a link or prompt (depends on mode)<br>
+      🔗 <b>Links / 📝 Prompts / 🚗 Ride</b> — Switch modes at the top<br>
+      📄 <b>New</b> — Add a link, prompt, or calculate a ride (depends on mode)<br>
       🔍 <b>Search</b> — Real-time search across titles, tags &amp; text<br>
       📁 <b>Sidebar/bar</b> — Filter by category<br>
       🖱️ <b>Right-click / long-press</b> — Open/copy, edit, new version, delete<br>
@@ -649,10 +694,11 @@
   };
   const ALL_PROMPT_CATS = Object.keys(PROMPT_CAT_EMOJI);
 
-  let mode = 'links'; // 'links' | 'prompts'
-  let links = [], prompts = [];
+  let mode = 'links'; // 'links' | 'prompts' | 'rides'
+  let links = [], prompts = [], rides = [];
   let activeCat = 'All', editId = null, ctxId = null, selectedId = null;
   let longPressTimer = null;
+  let rideCalcResult = null; // holds the last /api/distance response awaiting save
 
   // ── Clock ──
   function updateClock() {
@@ -681,9 +727,10 @@
   // ── Load both links and prompts ──
   async function refreshAll() {
     setLoading(true); setSyncStatus('🔄 Syncing...');
-    const [linkResult, promptResult] = await Promise.allSettled([
+    const [linkResult, promptResult, rideResult] = await Promise.allSettled([
       apiFetch('GET', 'links'),
       apiFetch('GET', 'prompts'),
+      apiFetch('GET', 'rides'),
     ]);
 
     if (linkResult.status === 'fulfilled') {
@@ -701,6 +748,13 @@
       prompts = prompts || [];
     }
 
+    if (rideResult.status === 'fulfilled') {
+      rides = rideResult.value.rides || [];
+    } else {
+      if (mode === 'rides') showToast('⚠️ Rides: ' + rideResult.reason.message);
+      rides = rides || [];
+    }
+
     renderSidebar(); renderCatBar(); renderContent();
     setSyncStatus(linkResult.status === 'fulfilled' ? '✅ Synced' : '❌ Failed');
     setLoading(false);
@@ -711,19 +765,27 @@
     mode = m; activeCat = 'All'; selectedId = null;
     document.getElementById('tab-links').classList.toggle('active', m === 'links');
     document.getElementById('tab-prompts').classList.toggle('active', m === 'prompts');
-    document.getElementById('sidebar-title').textContent = m === 'links' ? 'CATEGORIES' : 'PROMPT CATEGORIES';
+    document.getElementById('tab-rides').classList.toggle('active', m === 'rides');
+    document.getElementById('sidebar-title').textContent =
+      m === 'links' ? 'CATEGORIES' : m === 'prompts' ? 'PROMPT CATEGORIES' : 'SAVED RIDES';
     document.getElementById('search-input').value = '';
-    document.getElementById('toolbar-new-btn').textContent = m === 'links' ? '📄 New' : '📝 New';
+    document.getElementById('toolbar-new-btn').textContent =
+      m === 'links' ? '📄 New' : m === 'prompts' ? '📝 New' : '🚗 New';
     renderSidebar(); renderCatBar(); renderContent();
   }
 
-  function curEmojiMap() { return mode === 'links' ? CAT_EMOJI : PROMPT_CAT_EMOJI; }
-  function curCats()     { return mode === 'links' ? ALL_CATS : ALL_PROMPT_CATS; }
-  function curItems()    { return mode === 'links' ? links : prompts; }
-  function catField()    { return mode === 'links' ? 'cat' : 'category'; }
+  function curEmojiMap() { return mode === 'links' ? CAT_EMOJI : mode === 'prompts' ? PROMPT_CAT_EMOJI : {}; }
+  function curCats()     { return mode === 'links' ? ALL_CATS : mode === 'prompts' ? ALL_PROMPT_CATS : []; }
+  function curItems()    { return mode === 'links' ? links : mode === 'prompts' ? prompts : rides; }
+  function catField()    { return mode === 'links' ? 'cat' : mode === 'prompts' ? 'category' : null; }
 
   // ── Sidebar (desktop/tablet) ──
   function renderSidebar() {
+    if (mode === 'rides') {
+      document.getElementById('cat-list').innerHTML =
+        `<div class="cat-folder active">🗂️ All Rides</div>`;
+      return;
+    }
     const emojiMap = curEmojiMap(), field = catField();
     const cats = ['All', ...curCats().filter(c => curItems().some(l => l[field] === c))];
     document.getElementById('cat-list').innerHTML = cats.map(c =>
@@ -735,6 +797,10 @@
 
   // ── Category chips (mobile) ──
   function renderCatBar() {
+    if (mode === 'rides') {
+      document.getElementById('cat-chips').innerHTML = `<span class="cat-chip active">🗂️ All Rides</span>`;
+      return;
+    }
     const emojiMap = curEmojiMap(), field = catField();
     const cats = ['All', ...curCats().filter(c => curItems().some(l => l[field] === c))];
     document.getElementById('cat-chips').innerHTML = cats.map(c =>
@@ -755,6 +821,7 @@
 
   // ── Content ──
   function renderContent() {
+    if (mode === 'rides') return renderRideList();
     const q = document.getElementById('search-input').value.toLowerCase().trim();
     const field = catField(), emojiMap = curEmojiMap();
     const filtered = curItems().filter(l => {
@@ -770,7 +837,10 @@
     const content = document.getElementById('content');
     content.querySelectorAll('.link-icon').forEach(e => e.remove());
     const empty = document.getElementById('empty-state');
-    if (!filtered.length) { empty.style.display = 'block'; }
+    if (!filtered.length) {
+      empty.innerHTML = 'Nothing here yet.<br>Tap ➕ to add one!';
+      empty.style.display = 'block';
+    }
     else {
       empty.style.display = 'none';
       filtered.forEach(l => {
@@ -821,6 +891,122 @@
     updateSelectedStatus();
   }
 
+  // ── Ride & Drive ──
+  function renderRideList() {
+    const q = document.getElementById('search-input').value.toLowerCase().trim();
+    const filtered = rides.filter(r => !q || (r.destination||'').toLowerCase().includes(q));
+    const content = document.getElementById('content');
+    content.querySelectorAll('.link-icon').forEach(e => e.remove());
+    const empty = document.getElementById('empty-state');
+    if (!filtered.length) {
+      empty.style.display = 'block';
+      empty.innerHTML = 'No rides saved yet.<br>Tap ➕ to calculate one!';
+    } else {
+      empty.style.display = 'none';
+      filtered.forEach(r => {
+        const div = document.createElement('div');
+        div.className = 'link-icon ride-row' + (r.id === selectedId ? ' selected' : '');
+        div.dataset.id = r.id;
+        const stats = [
+          r.car_km ? `🚗 ${r.car_km} km / ${r.car_min} min` : null,
+          r.bike_km ? `🚲 ${r.bike_km} km / ${r.bike_min} min` : null,
+        ].filter(Boolean).join('  ·  ') || 'No route data';
+        div.innerHTML = `<div class="ride-icon">🗺️</div>
+          <div class="ride-info">
+            <div class="ride-dest">${escHtml(r.destination || r.link)}</div>
+            <div class="ride-stats">${stats}</div>
+          </div>`;
+        div.addEventListener('click', () => selectLink(r.id));
+        div.addEventListener('dblclick', () => openUrl(r.link));
+        div.addEventListener('contextmenu', e => { e.preventDefault(); showCtx(e, r.id); });
+        div.addEventListener('touchstart', () => {
+          longPressTimer = setTimeout(() => { longPressTimer = null; showCtxTouch(r.id); }, 500);
+        }, { passive: true });
+        div.addEventListener('touchend', () => {
+          if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; openUrl(r.link); }
+        });
+        div.addEventListener('touchmove', () => { clearTimeout(longPressTimer); longPressTimer = null; }, { passive: true });
+        content.appendChild(div);
+      });
+    }
+    document.getElementById('status-count').textContent =
+      filtered.length + ' ride' + (filtered.length !== 1 ? 's' : '');
+    updateSelectedStatus();
+  }
+
+  function openRideAdd() {
+    rideCalcResult = null;
+    document.getElementById('r-link').value = '';
+    document.getElementById('r-result').classList.add('hidden');
+    document.getElementById('r-result').innerHTML = '';
+    document.getElementById('r-save-btn').classList.add('hidden');
+    document.getElementById('ride-modal').classList.add('open');
+    setTimeout(() => document.getElementById('r-link').focus(), 100);
+  }
+
+  function closeRideModal() { document.getElementById('ride-modal').classList.remove('open'); }
+
+  async function calcRide() {
+    const link = document.getElementById('r-link').value.trim();
+    if (!link) { showToast('⚠️ Paste a link or place name first!'); return; }
+    const btn = document.getElementById('r-calc-btn');
+    const resultBox = document.getElementById('r-result');
+    btn.disabled = true; btn.textContent = '⏳ Calculating...';
+    resultBox.classList.add('hidden');
+    document.getElementById('r-save-btn').classList.add('hidden');
+    try {
+      const res = await fetch('/api/distance', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ link }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Calculation failed');
+      rideCalcResult = { link, destination: data.destination, car: data.car, bike: data.bike };
+      resultBox.innerHTML = `
+        <div class="rr-line"><b>${escHtml(data.destination)}</b></div>
+        <div class="rr-line"><span>🚗 Car</span><span>${data.car ? data.car.distance_km + ' km · ' + data.car.duration_min + ' min' : 'n/a'}</span></div>
+        ${data.carError ? `<div class="rr-err">Car: ${escHtml(data.carError)}</div>` : ''}
+        <div class="rr-line"><span>🚲 Bike</span><span>${data.bike ? data.bike.distance_km + ' km · ' + data.bike.duration_min + ' min' : 'n/a'}</span></div>
+        ${data.bikeError ? `<div class="rr-err">Bike: ${escHtml(data.bikeError)}</div>` : ''}
+      `;
+      resultBox.classList.remove('hidden');
+      document.getElementById('r-save-btn').classList.remove('hidden');
+    } catch (err) {
+      resultBox.innerHTML = `<div class="rr-err">⚠️ ${escHtml(err.message)}</div>`;
+      resultBox.classList.remove('hidden');
+    } finally {
+      btn.disabled = false; btn.textContent = '📏 Calculate';
+    }
+  }
+
+  async function saveRide() {
+    if (!rideCalcResult) return;
+    const btn = document.getElementById('r-save-btn');
+    btn.disabled = true; btn.textContent = '⏳...';
+    setSyncStatus('🔄 Saving...');
+    try {
+      const item = {
+        id: String(Date.now()),
+        destination: rideCalcResult.destination,
+        link: rideCalcResult.link,
+        car_km: rideCalcResult.car?.distance_km ?? '',
+        car_min: rideCalcResult.car?.duration_min ?? '',
+        bike_km: rideCalcResult.bike?.distance_km ?? '',
+        bike_min: rideCalcResult.bike?.duration_min ?? '',
+        date: new Date().toISOString(),
+      };
+      await apiFetch('POST', 'rides', item);
+      rides.push(item);
+      showToast('✔ Ride saved!');
+      setSyncStatus('✅ Synced');
+      closeRideModal(); renderSidebar(); renderCatBar(); renderContent();
+    } catch (err) {
+      showToast('⚠️ ' + err.message); setSyncStatus('❌ Failed');
+    } finally {
+      btn.disabled = false; btn.textContent = '✔ Save';
+    }
+  }
+
   function copyPrompt(id) {
     const p = prompts.find(x => x.id === id); if (!p) return;
     navigator.clipboard.writeText(p.prompt);
@@ -847,10 +1033,16 @@
 
   function updateSelectedStatus() {
     const l = curItems().find(x => x.id === selectedId);
-    if (!l) { document.getElementById('status-selected').textContent = mode === 'links' ? 'Select a link' : 'Select a prompt'; return; }
+    if (!l) {
+      document.getElementById('status-selected').textContent =
+        mode === 'links' ? 'Select a link' : mode === 'prompts' ? 'Select a prompt' : 'Select a ride';
+      return;
+    }
     document.getElementById('status-selected').textContent = mode === 'links'
       ? `${l.url}${l.note ? ' | ' + l.note : ''}`
-      : `${l.tool ? l.tool + ' | ' : ''}${(l.tags||'').split(',').filter(Boolean).join(', ') || 'no tags'}`;
+      : mode === 'prompts'
+      ? `${l.tool ? l.tool + ' | ' : ''}${(l.tags||'').split(',').filter(Boolean).join(', ') || 'no tags'}`
+      : `${l.link}`;
   }
 
   function openUrl(url) { window.open(url, '_blank'); }
@@ -859,6 +1051,7 @@
   // ── Modal ──
   function openAdd() {
     if (mode === 'prompts') return openPromptAdd();
+    if (mode === 'rides') return openRideAdd();
     editId = null;
     document.getElementById('modal-title').textContent = 'Add New Link';
     ['m-title','m-url','m-note'].forEach(id => document.getElementById(id).value = '');
@@ -1076,9 +1269,11 @@
   // ── Context Menu ──
   function showCtx(e, id) {
     ctxId = id; selectLink(id);
-    document.getElementById('ctx-open').classList.toggle('hidden', mode !== 'links');
-    document.getElementById('ctx-copy').textContent = mode === 'links' ? '📋 Copy URL' : '📋 Copy Prompt';
+    document.getElementById('ctx-open').classList.toggle('hidden', mode === 'prompts');
+    document.getElementById('ctx-copy').textContent =
+      mode === 'links' ? '📋 Copy URL' : mode === 'rides' ? '📋 Copy Link' : '📋 Copy Prompt';
     document.getElementById('ctx-newver').classList.toggle('hidden', mode !== 'prompts');
+    document.getElementById('ctx-edit').classList.toggle('hidden', mode === 'rides');
     const menu = document.getElementById('ctx-menu');
     menu.style.transform = '';
     menu.style.left = Math.min(e.clientX, window.innerWidth - 180) + 'px';
@@ -1086,19 +1281,28 @@
     menu.classList.add('open');
   }
   function showCtxTouchMode(id) {
-    document.getElementById('ctx-open').classList.toggle('hidden', mode !== 'links');
-    document.getElementById('ctx-copy').textContent = mode === 'links' ? '📋 Copy URL' : '📋 Copy Prompt';
+    document.getElementById('ctx-open').classList.toggle('hidden', mode === 'prompts');
+    document.getElementById('ctx-copy').textContent =
+      mode === 'links' ? '📋 Copy URL' : mode === 'rides' ? '📋 Copy Link' : '📋 Copy Prompt';
     document.getElementById('ctx-newver').classList.toggle('hidden', mode !== 'prompts');
+    document.getElementById('ctx-edit').classList.toggle('hidden', mode === 'rides');
   }
   function hideCtx() {
     const m = document.getElementById('ctx-menu');
     m.classList.remove('open'); m.style.transform = '';
   }
-  function ctxOpen()   { const l = links.find(x=>x.id===ctxId); if(l) openUrl(l.url); hideCtx(); }
+  function ctxOpen() {
+    if (mode === 'rides') { const r = rides.find(x=>x.id===ctxId); if (r) openUrl(r.link); }
+    else { const l = links.find(x=>x.id===ctxId); if (l) openUrl(l.url); }
+    hideCtx();
+  }
   function ctxCopy()   {
     if (mode === 'links') {
       const l = links.find(x=>x.id===ctxId);
       if (l) { navigator.clipboard.writeText(l.url); showToast('📋 Copied!'); }
+    } else if (mode === 'rides') {
+      const r = rides.find(x=>x.id===ctxId);
+      if (r) { navigator.clipboard.writeText(r.link); showToast('📋 Copied!'); }
     } else {
       copyPrompt(ctxId);
     }
@@ -1110,12 +1314,14 @@
   }
   async function ctxDelete() {
     const l = curItems().find(x=>x.id===ctxId);
-    if (!l || !confirm(`Delete "${l.title}"?`)) { hideCtx(); return; }
+    const label = mode === 'rides' ? l?.destination : l?.title;
+    if (!l || !confirm(`Delete "${label}"?`)) { hideCtx(); return; }
     hideCtx(); setSyncStatus('🔄 Deleting...');
     try {
       await apiFetch('DELETE', mode, null, l.id);
       if (mode === 'links') links = links.filter(x=>x.id!==ctxId);
-      else prompts = prompts.filter(x=>x.id!==ctxId);
+      else if (mode === 'prompts') prompts = prompts.filter(x=>x.id!==ctxId);
+      else rides = rides.filter(x=>x.id!==ctxId);
       if (selectedId===ctxId) selectedId=null;
       renderSidebar(); renderCatBar(); renderContent();
       showToast('🗑️ Deleted!'); setSyncStatus('✅ Synced');
