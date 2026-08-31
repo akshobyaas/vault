@@ -57,9 +57,9 @@ const RESOURCES = {
   },
   rides: {
     sheetName: 'Rides',
-    range: 'A2:H',
-    colRange: 'A:H',
-    // id, destination, link, car_km, car_min, bike_km, bike_min, date
+    range: 'A2:J',
+    colRange: 'A:J',
+    // id, destination, link, car_km, car_min, bike_km, bike_min, date, name, tags
     toRow: (o) => [
       o.id || String(Date.now()),
       o.destination || '',
@@ -69,11 +69,13 @@ const RESOURCES = {
       o.bike_km ?? '',
       o.bike_min ?? '',
       o.date || new Date().toISOString(),
+      o.name || '',
+      o.tags || '',
     ],
     fromRow: (r) => ({
       id: r[0] || '', destination: r[1] || '', link: r[2] || '',
       car_km: r[3] || '', car_min: r[4] || '', bike_km: r[5] || '', bike_min: r[6] || '',
-      date: r[7] || '',
+      date: r[7] || '', name: r[8] || '', tags: r[9] || '',
     }),
     validate: (o) => o?.link,
     validationMsg: 'Link required',

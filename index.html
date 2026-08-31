@@ -120,6 +120,7 @@
     .status-flag { font-size: 11px; padding: 0 4px; margin-left: 4px; }
 
     /* ── Ride & Drive ── */
+    #content.rides-mode { display: block; }
     .ride-list { padding: 8px; }
     .ride-row {
       display: flex; align-items: center; gap: 10px;
@@ -138,6 +139,26 @@
     }
     .ride-result .rr-line { display: flex; justify-content: space-between; padding: 3px 0; }
     .ride-result .rr-err { color: #a00; font-size: 13px; }
+    .ride-filter-bar {
+      background: #c0c0c0; border-bottom: 2px solid #808080;
+      padding: 8px 10px; display: flex; flex-direction: column; gap: 6px;
+    }
+    .rf-tags { display: flex; flex-wrap: wrap; gap: 5px; }
+    .rf-tag-chip {
+      font-size: 13px; padding: 3px 9px; cursor: pointer; user-select: none;
+      background: #fff; border: 1px solid #808080; touch-action: manipulation;
+    }
+    .rf-tag-chip.active { background: #000080; color: #fff; border-color: #000080; }
+    .rf-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 14px; }
+    .rf-row input[type="number"] { width: 60px; font-family: 'VT323', monospace; font-size: 14px; padding: 2px 4px; }
+    .rf-row select { font-family: 'VT323', monospace; font-size: 14px; padding: 2px 4px; }
+    .rf-clear { cursor: pointer; color: #000080; text-decoration: underline; font-size: 13px; }
+    .modal-tag-row { display: flex; flex-wrap: wrap; gap: 5px; margin: 4px 0 8px; }
+    .modal-tag-chip {
+      font-size: 14px; padding: 3px 10px; cursor: pointer; user-select: none;
+      background: #fff; border: 1px solid #808080; touch-action: manipulation;
+    }
+    .modal-tag-chip.active { background: #000080; color: #fff; border-color: #000080; }
     .status-flag.deprecated { background: #808080; color: #fff; }
     .status-flag.draft { background: #ffff80; color: #000; }
 
@@ -568,6 +589,15 @@
         <label class="field-lbl" for="r-link">Maps link:</label>
         <input id="r-link" type="text" placeholder="Paste a Google Maps link or place name" autocomplete="off" />
       </div>
+      <div class="field-row">
+        <label class="field-lbl" for="r-name">Name (optional):</label>
+        <input id="r-name" type="text" placeholder="Leave blank to auto-detect from link" autocomplete="off" />
+      </div>
+      <div class="field-row">
+        <label class="field-lbl">Tags (optional):</label>
+        <div class="modal-tag-row" id="r-tag-chips"></div>
+        <input id="r-tags-custom" type="text" placeholder="Add your own, comma-separated" autocomplete="off" />
+      </div>
       <div class="dialog-btns">
         <button class="btn" id="r-calc-btn" onclick="calcRide()">📏 Calculate</button>
       </div>
@@ -694,11 +724,21 @@
   };
   const ALL_PROMPT_CATS = Object.keys(PROMPT_CAT_EMOJI);
 
+  // Ride tags are optional, multi-select (a ride can be both "Scenic" and "Short")
+  const RIDE_TAG_PRESETS = [
+    'Sunset', 'Sunrise', 'One-day Trip', 'Half-day Trip', 'Night Ride',
+    'Coffee Ride', 'Short Ride', 'Long Ride', 'Scenic', 'Weekend Ride',
+  ];
+
   let mode = 'links'; // 'links' | 'prompts' | 'rides'
   let links = [], prompts = [], rides = [];
   let activeCat = 'All', editId = null, ctxId = null, selectedId = null;
   let longPressTimer = null;
-  let rideCalcResult = null; // holds the last /api/distance response awaiting save
+  let rideCalcResult = null;    // holds the last /api/distance response awaiting save
+  let selectedRideTags = new Set(); // tags picked in the Add Ride modal
+  let rideFilterTags = new Set();   // active tag filters in the ride list
+  let rideMaxCarKm = null, rideMaxDurationMin = null; // active distance/duration filters
+  let rideSort = 'newest'; // 'newest' | 'nearest' | 'farthest'
 
   // ── Clock ──
   function updateClock() {
@@ -771,6 +811,11 @@
     document.getElementById('search-input').value = '';
     document.getElementById('toolbar-new-btn').textContent =
       m === 'links' ? '📄 New' : m === 'prompts' ? '📝 New' : '🚗 New';
+    document.getElementById('content').classList.toggle('rides-mode', m === 'rides');
+    document.getElementById('addr-field').value =
+      m === 'links' ? `All Links (${links.length} items)`
+      : m === 'prompts' ? `All Prompts (${prompts.length} items)`
+      : `🚗 All Rides (${rides.length} items)`;
     renderSidebar(); renderCatBar(); renderContent();
   }
 
@@ -835,6 +880,7 @@
       return matchCat && matchQ;
     });
     const content = document.getElementById('content');
+    document.getElementById('ride-filter-bar')?.remove();
     content.querySelectorAll('.link-icon').forEach(e => e.remove());
     const empty = document.getElementById('empty-state');
     if (!filtered.length) {
@@ -892,15 +938,80 @@
   }
 
   // ── Ride & Drive ──
+  let _rideTagUniverseKey = null; // tracks whether the filter bar's tag chip set needs rebuilding
+
+  function ensureRideFilterBar(forceRebuild) {
+    const content = document.getElementById('content');
+    let bar = document.getElementById('ride-filter-bar');
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.id = 'ride-filter-bar';
+      bar.className = 'ride-filter-bar';
+      content.prepend(bar);
+    }
+    const usedTags = new Set(RIDE_TAG_PRESETS);
+    rides.forEach(r => (r.tags||'').split(',').map(t=>t.trim()).filter(Boolean).forEach(t => usedTags.add(t)));
+    const key = [...usedTags].sort().join('|');
+    if (!forceRebuild && key === _rideTagUniverseKey) return; // chips unchanged, don't touch DOM (preserves input focus)
+    _rideTagUniverseKey = key;
+
+    bar.innerHTML = `
+      <div class="rf-tags">${[...usedTags].map(t => `
+        <span class="rf-tag-chip${rideFilterTags.has(t) ? ' active' : ''}" onclick="toggleRideFilterTag('${t.replace(/'/g,"\\'")}', this)">${escHtml(t)}</span>
+      `).join('')}</div>
+      <div class="rf-row">
+        <span>Max car dist:</span><input type="number" id="rf-max-km" min="0" placeholder="km" value="${rideMaxCarKm ?? ''}" oninput="setRideMaxKm(this.value)" />
+        <span>Max duration:</span><input type="number" id="rf-max-min" min="0" placeholder="min" value="${rideMaxDurationMin ?? ''}" oninput="setRideMaxMin(this.value)" />
+        <span>Sort:</span>
+        <select id="rf-sort" onchange="setRideSort(this.value)">
+          <option value="newest" ${rideSort==='newest'?'selected':''}>Newest first</option>
+          <option value="nearest" ${rideSort==='nearest'?'selected':''}>Nearest first</option>
+          <option value="farthest" ${rideSort==='farthest'?'selected':''}>Farthest first</option>
+        </select>
+        <span class="rf-clear" onclick="clearRideFilters()">✕ Clear filters</span>
+      </div>`;
+  }
+
+  function toggleRideFilterTag(tag, el) {
+    rideFilterTags.has(tag) ? rideFilterTags.delete(tag) : rideFilterTags.add(tag);
+    el.classList.toggle('active');
+    renderRideRows();
+  }
+  function setRideMaxKm(v) { rideMaxCarKm = v ? parseFloat(v) : null; renderRideRows(); }
+  function setRideMaxMin(v) { rideMaxDurationMin = v ? parseFloat(v) : null; renderRideRows(); }
+  function setRideSort(v) { rideSort = v; renderRideRows(); }
+  function clearRideFilters() {
+    rideFilterTags.clear(); rideMaxCarKm = null; rideMaxDurationMin = null; rideSort = 'newest';
+    ensureRideFilterBar(true); renderRideRows();
+  }
+
   function renderRideList() {
+    ensureRideFilterBar();
+    renderRideRows();
+  }
+
+  function renderRideRows() {
     const q = document.getElementById('search-input').value.toLowerCase().trim();
-    const filtered = rides.filter(r => !q || (r.destination||'').toLowerCase().includes(q));
+    let filtered = rides.filter(r => {
+      if (q && !(r.destination||'').toLowerCase().includes(q)) return false;
+      if (rideFilterTags.size) {
+        const tags = (r.tags||'').split(',').map(t=>t.trim()).filter(Boolean);
+        if (![...rideFilterTags].some(t => tags.includes(t))) return false;
+      }
+      if (rideMaxCarKm != null && r.car_km && parseFloat(r.car_km) > rideMaxCarKm) return false;
+      if (rideMaxDurationMin != null && r.car_min && parseFloat(r.car_min) > rideMaxDurationMin) return false;
+      return true;
+    });
+    if (rideSort === 'nearest') filtered = [...filtered].sort((a,b) => (parseFloat(a.car_km)||Infinity) - (parseFloat(b.car_km)||Infinity));
+    else if (rideSort === 'farthest') filtered = [...filtered].sort((a,b) => (parseFloat(b.car_km)||-1) - (parseFloat(a.car_km)||-1));
+    else filtered = [...filtered].sort((a,b) => new Date(b.date||0) - new Date(a.date||0));
+
     const content = document.getElementById('content');
     content.querySelectorAll('.link-icon').forEach(e => e.remove());
     const empty = document.getElementById('empty-state');
     if (!filtered.length) {
       empty.style.display = 'block';
-      empty.innerHTML = 'No rides saved yet.<br>Tap ➕ to calculate one!';
+      empty.innerHTML = rides.length ? 'No rides match these filters.' : 'No rides saved yet.<br>Tap ➕ to calculate one!';
     } else {
       empty.style.display = 'none';
       filtered.forEach(r => {
@@ -911,10 +1022,13 @@
           r.car_km ? `🚗 ${r.car_km} km / ${r.car_min} min` : null,
           r.bike_km ? `🚲 ${r.bike_km} km / ${r.bike_min} min` : null,
         ].filter(Boolean).join('  ·  ') || 'No route data';
+        const tags = (r.tags||'').split(',').map(t=>t.trim()).filter(Boolean);
+        const tagHtml = tags.length ? `<div class="ride-stats">${tags.map(t=>`🏷️ ${escHtml(t)}`).join('  ')}</div>` : '';
         div.innerHTML = `<div class="ride-icon">🗺️</div>
           <div class="ride-info">
-            <div class="ride-dest">${escHtml(r.destination || r.link)}</div>
+            <div class="ride-dest">${escHtml(r.name || r.destination || r.link)}</div>
             <div class="ride-stats">${stats}</div>
+            ${tagHtml}
           </div>`;
         div.addEventListener('click', () => selectLink(r.id));
         div.addEventListener('dblclick', () => openUrl(r.link));
@@ -930,13 +1044,28 @@
       });
     }
     document.getElementById('status-count').textContent =
-      filtered.length + ' ride' + (filtered.length !== 1 ? 's' : '');
+      filtered.length + ' of ' + rides.length + ' ride' + (rides.length !== 1 ? 's' : '');
+    document.getElementById('addr-field').value = `🚗 All Rides (${rides.length} items)`;
     updateSelectedStatus();
+  }
+
+  function renderModalTagChips() {
+    document.getElementById('r-tag-chips').innerHTML = RIDE_TAG_PRESETS.map(t => `
+      <span class="modal-tag-chip${selectedRideTags.has(t) ? ' active' : ''}" onclick="toggleModalTag('${t.replace(/'/g,"\\'")}')">${escHtml(t)}</span>
+    `).join('');
+  }
+  function toggleModalTag(tag) {
+    selectedRideTags.has(tag) ? selectedRideTags.delete(tag) : selectedRideTags.add(tag);
+    renderModalTagChips();
   }
 
   function openRideAdd() {
     rideCalcResult = null;
+    selectedRideTags = new Set();
     document.getElementById('r-link').value = '';
+    document.getElementById('r-name').value = '';
+    document.getElementById('r-tags-custom').value = '';
+    renderModalTagChips();
     document.getElementById('r-result').classList.add('hidden');
     document.getElementById('r-result').innerHTML = '';
     document.getElementById('r-save-btn').classList.add('hidden');
@@ -985,10 +1114,15 @@
     btn.disabled = true; btn.textContent = '⏳...';
     setSyncStatus('🔄 Saving...');
     try {
+      const nameOverride = document.getElementById('r-name').value.trim();
+      const customTags = document.getElementById('r-tags-custom').value.split(',').map(t=>t.trim()).filter(Boolean);
+      const allTags = [...new Set([...selectedRideTags, ...customTags])];
       const item = {
         id: String(Date.now()),
         destination: rideCalcResult.destination,
+        name: nameOverride,
         link: rideCalcResult.link,
+        tags: allTags.join(', '),
         car_km: rideCalcResult.car?.distance_km ?? '',
         car_min: rideCalcResult.car?.duration_min ?? '',
         bike_km: rideCalcResult.bike?.distance_km ?? '',
