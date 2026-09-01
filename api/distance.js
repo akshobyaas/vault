@@ -26,6 +26,18 @@ async function geocode(query) {
   return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon), resolvedName: data[0].display_name };
 }
 
+async function reverseGeocode(lat, lng) {
+  try {
+    const { data } = await safeFetch(
+      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
+      { headers: { 'User-Agent': 'MyVault-RideDrive/1.0 (personal tool)' } }
+    );
+    return data?.display_name || null;
+  } catch {
+    return null;
+  }
+}
+
 async function getOrigin() {
   return ORIGIN;
 }
@@ -45,20 +57,43 @@ async function resolveDestination(link) {
     return await geocode(target);
   }
 
-  // Try coords embedded in the URL: @lat,lng
+  // Prefer an explicit place name embedded in the URL (/maps/place/NAME/) — more
+  // readable and usually more accurate than reverse-geocoding raw coordinates.
+  const placeMatch = target.match(/\/maps\/place\/([^/@]+)/);
+  if (placeMatch) {
+    const name = decodeURIComponent(placeMatch[1].replace(/\+/g, ' '));
+    try {
+      return await geocode(name);
+    } catch {
+      // fall through to coordinate extraction below
+    }
+  }
+
+  // Fall back to coords embedded in the URL, then reverse-geocode for a readable name
   let m = target.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
   if (!m) m = target.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/); // pin-specific coords
   if (!m) m = target.match(/[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)/);
-  if (m) return { lat: parseFloat(m[1]), lng: parseFloat(m[2]) };
+  if (m) {
+    const lat = parseFloat(m[1]), lng = parseFloat(m[2]);
+    const resolvedName = await reverseGeocode(lat, lng);
+    return { lat, lng, resolvedName };
+  }
 
-  // Fall back: pull the place name out of /maps/place/NAME/ and geocode it
-  const placeMatch = target.match(/\/maps\/place\/([^/@]+)/);
-  const query = placeMatch ? decodeURIComponent(placeMatch[1].replace(/\+/g, ' ')) : target;
-  return await geocode(query);
+  // Last resort: try geocoding the raw URL text
+  return await geocode(target);
 }
 
+// router.project-osrm.org's public demo only has driving data loaded — requesting
+// "cycling" against it silently returns the same car route instead of erroring.
+// Use OSM Germany's dedicated bike-routing server for cycling instead.
+const OSRM_SERVERS = {
+  driving: { base: 'https://router.project-osrm.org/route/v1/driving' },
+  cycling: { base: 'https://routing.openstreetmap.de/routed-bike/route/v1/bike' },
+};
+
 async function routeOSRM(profile, origin, dest) {
-  const url = `https://router.project-osrm.org/route/v1/${profile}/${origin.lng},${origin.lat};${dest.lng},${dest.lat}?overview=false`;
+  const server = OSRM_SERVERS[profile];
+  const url = `${server.base}/${origin.lng},${origin.lat};${dest.lng},${dest.lat}?overview=false`;
   const { data } = await safeFetch(url);
   if (data.code !== 'Ok' || !data.routes?.[0]) {
     throw new Error(`${profile} routing failed: ${data.code || 'unknown error'}`);
