@@ -90,12 +90,25 @@ function getResource(req) {
 }
 
 module.exports = async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || '';
+  const origin = req.headers.origin;
+  res.setHeader('Access-Control-Allow-Origin', (ALLOWED_ORIGIN && origin === ALLOWED_ORIGIN) ? origin : (ALLOWED_ORIGIN || 'null'));
+  res.setHeader('Vary', 'Origin');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Vault-Key');
   res.setHeader('Content-Type', 'application/json');
 
   if (req.method === 'OPTIONS') return res.status(200).end();
+
+  // ── API key check — everything below this line touches personal data, so it's fail-closed:
+  // if VAULT_API_KEY isn't configured, requests are rejected rather than silently allowed through.
+  const VAULT_KEY = process.env.VAULT_API_KEY;
+  if (!VAULT_KEY) {
+    return res.status(500).json({ error: 'Server misconfigured: VAULT_API_KEY is not set' });
+  }
+  if (req.headers['x-vault-key'] !== VAULT_KEY) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
 
   const SHEET_ID      = process.env.GOOGLE_SHEET_ID;
   const CLIENT_ID     = process.env.GOOGLE_CLIENT_ID;

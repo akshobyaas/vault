@@ -685,6 +685,25 @@
   <div class="ctx-item" onclick="ctxDelete()">🗑️ Delete</div>
 </div>
 
+<!-- Unlock Dialog -->
+<div class="modal-overlay" id="unlock-modal">
+  <div class="dialog">
+    <div class="titlebar">
+      <div class="titlebar-left"><span>🔒</span> My Vault — Locked</div>
+    </div>
+    <div class="dialog-body">
+      <div class="field-row">
+        <label class="field-lbl" for="unlock-key">Access key:</label>
+        <input id="unlock-key" type="password" placeholder="Enter your Vault key" autocomplete="off" />
+      </div>
+      <div class="ride-result hidden" id="unlock-error"></div>
+      <div class="dialog-btns">
+        <button class="btn" onclick="submitVaultKey()">🔓 Unlock</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Help Dialog -->
 <div class="modal-overlay" id="help-modal">
   <div class="dialog">
@@ -750,15 +769,18 @@
   updateClock(); setInterval(updateClock, 10000);
 
   // ── API ──
+  function getVaultKey() { return sessionStorage.getItem('vaultKey') || ''; }
+
   async function apiFetch(method, type, body, queryId) {
     let url = '/api/sheets';
     const params = [];
     if (method === 'GET' || method === 'DELETE') params.push('type=' + type);
     if (method === 'DELETE' && queryId) params.push('id=' + queryId);
     if (params.length) url += '?' + params.join('&');
-    const opts = { method, headers: { 'Content-Type': 'application/json' } };
+    const opts = { method, headers: { 'Content-Type': 'application/json', 'X-Vault-Key': getVaultKey() } };
     if (body) opts.body = JSON.stringify({ ...body, type });
     const res = await fetch(url, opts);
+    if (res.status === 401) { lockVault('Session expired — please re-enter your key.'); throw new Error('Unauthorized'); }
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'API error');
     return data;
@@ -956,9 +978,7 @@
     _rideTagUniverseKey = key;
 
     bar.innerHTML = `
-      <div class="rf-tags">${[...usedTags].map(t => `
-        <span class="rf-tag-chip${rideFilterTags.has(t) ? ' active' : ''}" onclick="toggleRideFilterTag('${t.replace(/'/g,"\\'")}', this)">${escHtml(t)}</span>
-      `).join('')}</div>
+      <div class="rf-tags" id="rf-tags-wrap"></div>
       <div class="rf-row">
         <span>Max car dist:</span><input type="number" id="rf-max-km" min="0" placeholder="km" value="${rideMaxCarKm ?? ''}" oninput="setRideMaxKm(this.value)" />
         <span>Max duration:</span><input type="number" id="rf-max-min" min="0" placeholder="min" value="${rideMaxDurationMin ?? ''}" oninput="setRideMaxMin(this.value)" />
@@ -970,6 +990,18 @@
         </select>
         <span class="rf-clear" onclick="clearRideFilters()">✕ Clear filters</span>
       </div>`;
+
+    // Built via DOM APIs (not string-interpolated onclick) so tag text — which can come
+    // from anyone who can call the API — can never break out of an HTML attribute.
+    const tagsWrap = document.getElementById('rf-tags-wrap');
+    [...usedTags].forEach(t => {
+      const chip = document.createElement('span');
+      chip.className = 'rf-tag-chip' + (rideFilterTags.has(t) ? ' active' : '');
+      chip.textContent = t;
+      chip.dataset.tag = t;
+      chip.addEventListener('click', () => toggleRideFilterTag(t, chip));
+      tagsWrap.appendChild(chip);
+    });
   }
 
   function toggleRideFilterTag(tag, el) {
@@ -1050,9 +1082,15 @@
   }
 
   function renderModalTagChips() {
-    document.getElementById('r-tag-chips').innerHTML = RIDE_TAG_PRESETS.map(t => `
-      <span class="modal-tag-chip${selectedRideTags.has(t) ? ' active' : ''}" onclick="toggleModalTag('${t.replace(/'/g,"\\'")}')">${escHtml(t)}</span>
-    `).join('');
+    const wrap = document.getElementById('r-tag-chips');
+    wrap.innerHTML = '';
+    RIDE_TAG_PRESETS.forEach(t => {
+      const chip = document.createElement('span');
+      chip.className = 'modal-tag-chip' + (selectedRideTags.has(t) ? ' active' : '');
+      chip.textContent = t;
+      chip.addEventListener('click', () => toggleModalTag(t));
+      wrap.appendChild(chip);
+    });
   }
   function toggleModalTag(tag) {
     selectedRideTags.has(tag) ? selectedRideTags.delete(tag) : selectedRideTags.add(tag);
@@ -1085,9 +1123,10 @@
     document.getElementById('r-save-btn').classList.add('hidden');
     try {
       const res = await fetch('/api/distance', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Vault-Key': getVaultKey() },
         body: JSON.stringify({ link }),
       });
+      if (res.status === 401) { lockVault('Session expired — please re-enter your key.'); throw new Error('Unauthorized'); }
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Calculation failed');
       rideCalcResult = { link, destination: data.destination, car: data.car, bike: data.bike };
@@ -1488,7 +1527,33 @@
     if (e.key==='Enter' && e.target.tagName!=='TEXTAREA') savePrompt(false);
   });
 
-  refreshAll();
+  function lockVault(errorMsg) {
+    sessionStorage.removeItem('vaultKey');
+    const errBox = document.getElementById('unlock-error');
+    if (errorMsg) { errBox.textContent = '⚠️ ' + errorMsg; errBox.classList.remove('hidden'); }
+    else { errBox.classList.add('hidden'); }
+    document.getElementById('unlock-modal').classList.add('open');
+    setTimeout(() => document.getElementById('unlock-key').focus(), 100);
+  }
+
+  function submitVaultKey() {
+    const key = document.getElementById('unlock-key').value.trim();
+    if (!key) return;
+    sessionStorage.setItem('vaultKey', key);
+    document.getElementById('unlock-modal').classList.remove('open');
+    document.getElementById('unlock-key').value = '';
+    refreshAll();
+  }
+
+  document.getElementById('unlock-modal').addEventListener('keydown', e => {
+    if (e.key === 'Enter') submitVaultKey();
+  });
+
+  if (getVaultKey()) {
+    refreshAll();
+  } else {
+    lockVault();
+  }
 </script>
 </body>
 </html>
