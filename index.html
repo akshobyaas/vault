@@ -769,7 +769,7 @@
   updateClock(); setInterval(updateClock, 10000);
 
   // ── API ──
-  function getVaultKey() { return sessionStorage.getItem('vaultKey') || ''; }
+  function getVaultKey() { return localStorage.getItem('vaultKey') || ''; }
 
   async function apiFetch(method, type, body, queryId) {
     let url = '/api/sheets';
@@ -780,7 +780,7 @@
     const opts = { method, headers: { 'Content-Type': 'application/json', 'X-Vault-Key': getVaultKey() } };
     if (body) opts.body = JSON.stringify({ ...body, type });
     const res = await fetch(url, opts);
-    if (res.status === 401) { lockVault('Session expired — please re-enter your key.'); throw new Error('Unauthorized'); }
+    if (res.status === 401) { lockVault('Incorrect key — please re-enter it.'); throw new Error('Unauthorized'); }
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'API error');
     return data;
@@ -1126,7 +1126,7 @@
         method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Vault-Key': getVaultKey() },
         body: JSON.stringify({ link }),
       });
-      if (res.status === 401) { lockVault('Session expired — please re-enter your key.'); throw new Error('Unauthorized'); }
+      if (res.status === 401) { lockVault('Incorrect key — please re-enter it.'); throw new Error('Unauthorized'); }
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Calculation failed');
       rideCalcResult = { link, destination: data.destination, car: data.car, bike: data.bike };
@@ -1528,7 +1528,7 @@
   });
 
   function lockVault(errorMsg) {
-    sessionStorage.removeItem('vaultKey');
+    localStorage.removeItem('vaultKey');
     const errBox = document.getElementById('unlock-error');
     if (errorMsg) { errBox.textContent = '⚠️ ' + errorMsg; errBox.classList.remove('hidden'); }
     else { errBox.classList.add('hidden'); }
@@ -1539,7 +1539,7 @@
   function submitVaultKey() {
     const key = document.getElementById('unlock-key').value.trim();
     if (!key) return;
-    sessionStorage.setItem('vaultKey', key);
+    localStorage.setItem('vaultKey', key);
     document.getElementById('unlock-modal').classList.remove('open');
     document.getElementById('unlock-key').value = '';
     refreshAll();
