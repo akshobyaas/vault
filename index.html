@@ -1294,9 +1294,10 @@
       const { base64, mimeType } = await resizeImageFile(file);
       const res = await fetch('/api/sheets', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-Vault-Key': getVaultKey() },
         body: JSON.stringify({ type: 'upload', filename: file.name, mimeType, data: base64 }),
       });
+      if (res.status === 401) { lockVault('Incorrect key — please re-enter it.'); throw new Error('Unauthorized'); }
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Upload failed');
       document.getElementById('p-result').value = json.url;
