@@ -99,20 +99,24 @@
     }
     #addr-field { flex: 1; font-size: 15px; }
 
-    /* ── Mode tabs (Links / Prompts) ── */
+    /* ── Mode tabs (Links / Prompts / Ride) — Win95 property-sheet tabs ── */
     #mode-tabs {
-      display: flex; gap: 2px; background: #808080;
-      padding: 3px 6px 0; border-bottom: 1px solid #808080;
+      display: flex; gap: 0; background: #c0c0c0;
+      padding: 6px 6px 0; border-bottom: 2px solid #fff;
+      position: relative;
     }
     .mode-tab {
-      padding: 5px 14px; font-size: 15px; cursor: pointer;
-      background: #c0c0c0; border: 2px solid; border-color: #fff #808080 #808080 #fff;
-      color: #000; touch-action: manipulation;
+      padding: 4px 16px 3px; font-size: 17px; cursor: pointer;
+      background: #c0c0c0; color: #000; touch-action: manipulation;
+      border-top: 2px solid #fff; border-left: 2px solid #fff; border-right: 2px solid #808080;
+      border-bottom: none; margin-top: 3px; margin-right: -2px;
+      position: relative; top: 2px;
     }
     .mode-tab.active {
-      background: #e8e8e8; border-bottom-color: #e8e8e8;
-      color: #000080; font-weight: bold;
+      margin-top: 0; padding-top: 6px; padding-bottom: 5px; z-index: 1;
+      background: #c0c0c0; border-bottom: 2px solid #c0c0c0;
     }
+    .mode-tab:focus-visible { outline: 1px dotted #000; outline-offset: -5px; }
     .version-badge {
       font-size: 11px; background: #000080; color: #fff;
       padding: 0 4px; border-radius: 2px; margin-left: 4px;
@@ -120,45 +124,78 @@
     .status-flag { font-size: 11px; padding: 0 4px; margin-left: 4px; }
 
     /* ── Ride & Drive ── */
-    #content.rides-mode { display: block; }
-    .ride-list { padding: 8px; }
-    .ride-row {
-      display: flex; align-items: center; gap: 10px;
-      background: #fff; border: 2px solid; border-color: #808080 #fff #fff #808080;
-      padding: 8px 10px; margin-bottom: 6px; cursor: pointer;
+    /* Rides use Explorer's "Details" view: a header row + one line per ride.
+       Selectors are scoped under #content so they beat the generic .link-icon tile styles. */
+    #content.rides-mode { display: block; padding: 0; }
+    .ride-cols {
+      display: grid; grid-template-columns: 28px minmax(0, 1fr) 170px 170px;
+      align-items: center; column-gap: 10px;
     }
-    .ride-row.selected { background: #000080; color: #fff; }
-    .ride-row .ride-icon { font-size: 22px; }
-    .ride-row .ride-info { flex: 1; min-width: 0; }
-    .ride-row .ride-dest { font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .ride-row .ride-stats { font-size: 13px; color: #444; }
-    .ride-row.selected .ride-stats { color: #ddd; }
+    .ride-head {
+      position: sticky; top: 0; z-index: 2;
+      background: #c0c0c0; font-size: 15px; padding: 0 8px;
+    }
+    .ride-head > span {
+      padding: 2px 6px;
+      border-top: 2px solid #fff; border-left: 2px solid #fff;
+      border-right: 2px solid #808080; border-bottom: 2px solid #808080;
+      white-space: nowrap;
+    }
+    .ride-head > span:first-child { border: none; padding: 0; }
+    #content .ride-row {
+      display: grid; padding: 6px 8px; gap: 0; border: none; border-bottom: 1px dotted #c0c0c0;
+      cursor: pointer; text-align: left;
+    }
+    #content .ride-row:hover { background: #dde8f0; border-color: transparent; border-bottom: 1px dotted #c0c0c0; }
+    #content .ride-row.selected { background: #000080; color: #fff; }
+    #content .ride-row:focus-visible { outline: 1px dotted #000; outline-offset: -2px; }
+    #content .ride-row.selected:focus-visible { outline-color: #fff; }
+    .ride-row .ride-icon { font-size: 20px; line-height: 1; }
+    .ride-row .ride-info { min-width: 0; }
+    .ride-row .ride-dest { font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ride-row .ride-tags { font-size: 14px; color: #555; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ride-row .ride-num { font-size: 16px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .ride-row .ride-num small { font-size: 14px; color: #555; }
+    .ride-row .ride-num .na { color: #808080; }
+    .ride-row.selected .ride-tags, .ride-row.selected .ride-num small, .ride-row.selected .ride-num .na { color: #c8d0ff; }
+    .ride-row .ride-num-lbl { display: none; }
     .ride-result {
       border: 2px solid; border-color: #808080 #fff #fff #808080;
       background: #fff; padding: 10px; margin-top: 8px; font-size: 15px;
     }
     .ride-result .rr-line { display: flex; justify-content: space-between; padding: 3px 0; }
     .ride-result .rr-err { color: #a00; font-size: 13px; }
+    /* Filter panel styled as a Win95 group box */
     .ride-filter-bar {
-      background: #c0c0c0; border-bottom: 2px solid #808080;
-      padding: 8px 10px; display: flex; flex-direction: column; gap: 6px;
+      position: relative; margin: 14px 10px 10px;
+      border: 2px groove #fff; padding: 12px 10px 8px;
+      display: flex; flex-direction: column; gap: 8px; background: #c0c0c0;
     }
-    .rf-tags { display: flex; flex-wrap: wrap; gap: 5px; }
-    .rf-tag-chip {
-      font-size: 13px; padding: 3px 9px; cursor: pointer; user-select: none;
-      background: #fff; border: 1px solid #808080; touch-action: manipulation;
+    .ride-filter-bar::before {
+      content: 'Filter rides'; position: absolute; top: -11px; left: 8px;
+      background: #c0c0c0; padding: 0 4px; font-size: 15px;
     }
-    .rf-tag-chip.active { background: #000080; color: #fff; border-color: #000080; }
-    .rf-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 14px; }
-    .rf-row input[type="number"] { width: 60px; font-family: 'VT323', monospace; font-size: 14px; padding: 2px 4px; }
-    .rf-row select { font-family: 'VT323', monospace; font-size: 14px; padding: 2px 4px; }
-    .rf-clear { cursor: pointer; color: #000080; text-decoration: underline; font-size: 13px; }
-    .modal-tag-row { display: flex; flex-wrap: wrap; gap: 5px; margin: 4px 0 8px; }
-    .modal-tag-chip {
-      font-size: 14px; padding: 3px 10px; cursor: pointer; user-select: none;
-      background: #fff; border: 1px solid #808080; touch-action: manipulation;
+    .rf-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+    /* Tag chips behave like Win95 toggle buttons: raised when off, pressed when on */
+    .rf-tag-chip, .modal-tag-chip {
+      font-size: 15px; padding: 2px 9px; cursor: pointer; user-select: none;
+      background: #c0c0c0; color: #000; touch-action: manipulation;
+      border-top: 2px solid #fff; border-left: 2px solid #fff;
+      border-right: 2px solid #808080; border-bottom: 2px solid #808080;
     }
-    .modal-tag-chip.active { background: #000080; color: #fff; border-color: #000080; }
+    .rf-tag-chip.active, .modal-tag-chip.active {
+      border-top-color: #808080; border-left-color: #808080;
+      border-right-color: #fff; border-bottom-color: #fff;
+      background: #e0e0e0 repeating-conic-gradient(#c0c0c0 0 25%, #fff 0 50%) 0 0 / 2px 2px;
+      padding: 3px 8px 1px 10px;
+    }
+    .rf-tag-chip:focus-visible, .modal-tag-chip:focus-visible { outline: 1px dotted #000; outline-offset: -4px; }
+    .rf-row { display: flex; align-items: center; gap: 6px 16px; flex-wrap: wrap; font-size: 15px; }
+    .rf-row label { display: inline-flex; align-items: center; gap: 4px; }
+    .rf-row input[type="number"] { width: 64px; font-size: 15px; padding: 2px 4px; }
+    .rf-row select { font-size: 15px; padding: 2px 4px; }
+    .rf-row .btn { min-width: 0; padding: 2px 10px; font-size: 15px; margin-left: auto; }
+    .modal-tag-row { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0 8px; }
     .status-flag.deprecated { background: #808080; color: #fff; }
     .status-flag.draft { background: #ffff80; color: #000; }
 
@@ -219,9 +256,15 @@
       flex: 1; background: #fff; padding: 10px;
       overflow-y: auto; overflow-x: hidden; position: relative;
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
-      gap: 8px; align-content: start;
+      grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+      gap: 6px 8px; align-content: start;
     }
+    /* Win95 keyboard focus: dotted rectangle inside the control */
+    .btn:focus-visible, #start-btn:focus-visible { outline: 1px dotted #000; outline-offset: -5px; }
+    .cat-folder:focus-visible, .cat-chip:focus-visible, .ctx-item:focus-visible,
+    .menubar span:focus-visible { outline: 1px dotted #fff; outline-offset: -3px; background: #000080; color: #fff; }
+    input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 1px dotted #000080; outline-offset: 1px; }
+    .winbtn:focus-visible { outline: 1px dotted #000; outline-offset: -4px; }
 
     /* ── Loading ── */
     #loading {
@@ -242,23 +285,44 @@
     /* ── Link Icons ── */
     .link-icon {
       display: flex; flex-direction: column; align-items: center;
-      gap: 4px; padding: 8px 4px; cursor: pointer;
-      border: 1px solid transparent; touch-action: manipulation;
+      gap: 5px; padding: 8px 2px; cursor: pointer;
+      touch-action: manipulation; min-width: 0;
       -webkit-tap-highlight-color: transparent;
     }
-    .link-icon:hover { border: 1px dotted #000080; background: #dde8f0; }
-    .link-icon.selected { border: 1px solid #000080; background: #000080; }
-    .link-icon .emoji-box { font-size: 30px; line-height: 1; }
-    .link-icon .icon-name {
-      font-size: 13px; text-align: center; color: #000;
-      word-break: break-word; line-height: 1.2; max-width: 82px;
+    .link-icon:focus { outline: none; }
+    /* Win95 desktop selection: only the label turns navy; the icon gets a blue tint */
+    .link-icon .emoji-box {
+      font-size: 32px; line-height: 1; width: 40px; height: 40px;
+      display: flex; align-items: center; justify-content: center; position: relative;
     }
-    .link-icon.selected .icon-name { color: #fff; }
+    .link-icon .favicon {
+      width: 32px; height: 32px; image-rendering: pixelated;
+      border: 1px solid #c0c0c0; background: #fff; padding: 2px;
+    }
+    .link-icon .fav-badge {
+      position: absolute; right: -4px; bottom: -4px; font-size: 15px; line-height: 1;
+    }
+    .link-icon .icon-name {
+      font-size: 15px; text-align: center; color: #000;
+      line-height: 1.1; max-width: 100%; padding: 1px 3px;
+      border: 1px dotted transparent;
+      overflow-wrap: break-word;
+      display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .link-icon:hover .icon-name { text-decoration: underline; text-decoration-color: #000080; }
+    .link-icon.selected .emoji-box::after {
+      content: ''; position: absolute; inset: 0; background: #000080; opacity: .45; mix-blend-mode: multiply;
+    }
+    .link-icon.selected .icon-name { color: #fff; background: #000080; -webkit-line-clamp: unset; }
+    .link-icon:focus-visible .icon-name { border-color: #ffff80; }
+    .link-icon:not(.selected):focus-visible .icon-name { border-color: #000; }
 
     #empty-state {
       grid-column: 1/-1; text-align: center;
-      color: #808080; font-size: 18px; padding: 40px; display: none;
+      color: #555; font-size: 18px; padding: 48px 20px; display: none; line-height: 1.4;
     }
+    #empty-state .empty-icon { font-size: 40px; display: block; margin-bottom: 8px; filter: grayscale(1); opacity: .6; }
+    #empty-state .btn { margin-top: 12px; }
 
     /* ── Status Bar ── */
     .statusbar {
@@ -306,7 +370,7 @@
 
     /* ── FAB (mobile add button) ── */
     #fab {
-      display: none;
+      display: none !important; /* replaced by the toolbar's New button on all sizes */
       position: fixed; bottom: 50px; right: 14px;
       width: 52px; height: 52px;
       background: #000080; color: #fff;
@@ -389,6 +453,8 @@
     @media (max-width: 820px) {
       #sidebar { width: 120px; }
       .titlebar-left .title-text { display: none; }
+      .titlebar-left #title-short { display: inline !important; }
+      .ride-cols { grid-template-columns: 24px minmax(0, 1fr) 150px 150px; column-gap: 8px; }
       #status-selected { display: none; }
       #search-input { max-width: 180px; }
       #content { grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 6px; }
@@ -414,20 +480,34 @@
       .toolbar { padding: 4px; gap: 3px; }
       .toolbar .sep { display: none; }
       #search-input { flex: 1; max-width: 100%; min-width: 0; }
-      .toolbar .btn { min-width: 0; padding: 4px 8px; font-size: 15px; }
+      .toolbar .btn { min-width: 0; padding: 4px 8px; font-size: 16px; }
 
       /* Compact menu */
       .menubar span { padding: 4px 8px; font-size: 15px; }
 
       /* Larger touch targets for icons */
-      .link-icon { padding: 10px 4px; }
-      .link-icon .emoji-box { font-size: 34px; }
-      .link-icon .icon-name { font-size: 12px; max-width: 76px; }
-      #content { grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 6px; padding: 8px; }
+      .link-icon { padding: 10px 2px; }
+      .link-icon .icon-name { font-size: 15px; }
+      #content { grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 4px 6px; padding: 8px; }
 
-      /* Show FAB, hide toolbar new link btn */
-      #fab { display: flex; }
-      #toolbar-new-btn { display: none; }
+      /* Window chrome: the fake min/max/close buttons do nothing — drop them on phones */
+      #main-window > .titlebar .winbtns { display: none; }
+      .mode-tab { padding-left: 12px; padding-right: 12px; font-size: 16px; }
+
+      /* "New" lives in the toolbar on every screen size — no floating button over the category bar */
+      #toolbar-new-btn { display: inline-block; }
+
+      /* Rides: stack each row; stats go on a second line */
+      .ride-head { display: none; }
+      .ride-cols { grid-template-columns: 24px minmax(0, 1fr) auto; grid-template-rows: auto auto; row-gap: 2px; }
+      .ride-row .ride-icon { grid-row: 1 / span 2; align-self: start; padding-top: 2px; }
+      .ride-row .ride-info { grid-column: 2 / span 2; }
+      .ride-row .ride-num { grid-row: 2; font-size: 15px; }
+      .ride-row .ride-num-car { grid-column: 2; }
+      .ride-row .ride-num-bike { grid-column: 3; justify-self: end; }
+      .ride-row .ride-num-lbl { display: inline; }
+      .ride-filter-bar { margin: 14px 8px 8px; }
+      .rf-row .btn { margin-left: 0; }
 
       /* Bigger dialog on mobile */
       .dialog { max-width: 100%; }
@@ -441,6 +521,10 @@
       .task-item { display: none; }
       #start-btn { font-size: 15px; padding: 2px 8px; }
     }
+    @media (prefers-reduced-motion: reduce) {
+      .spinner { animation-duration: 2.4s; }
+      #toast, #sidebar { transition: none; }
+    }
   </style>
 </head>
 <body>
@@ -452,49 +536,49 @@
     <div class="titlebar">
       <div class="titlebar-left">
         <span>🗂️</span>
-        <span class="title-text">MY VAULT — Personal Link Directory</span>
-        <span class="hidden" id="title-short">MY VAULT</span>
+        <span class="title-text">My Vault — Personal Link Directory</span>
+        <span class="hidden" id="title-short">My Vault</span>
       </div>
       <div class="winbtns">
-        <div class="winbtn" title="Minimize">_</div>
-        <div class="winbtn" title="Maximize">□</div>
-        <div class="winbtn" title="Close">✕</div>
+        <div class="winbtn" aria-hidden="true">_</div>
+        <div class="winbtn" aria-hidden="true">□</div>
+        <div class="winbtn" aria-hidden="true">✕</div>
       </div>
     </div>
 
     <!-- Menu Bar -->
     <div class="menubar">
-      <span onclick="openAdd()"><u>F</u>ile</span>
-      <span onclick="refreshLinks()"><u>R</u>efresh</span>
-      <span onclick="showHelp()"><u>H</u>elp</span>
+      <span role="button" tabindex="0" onclick="openAdd()"><u>F</u>ile</span>
+      <span role="button" tabindex="0" onclick="refreshAll()"><u>R</u>efresh</span>
+      <span role="button" tabindex="0" onclick="showHelp()"><u>H</u>elp</span>
     </div>
 
     <!-- Mode Tabs -->
-    <div id="mode-tabs">
-      <div class="mode-tab active" id="tab-links" onclick="setMode('links')">🔗 LINKS</div>
-      <div class="mode-tab" id="tab-prompts" onclick="setMode('prompts')">📝 PROMPTS</div>
-      <div class="mode-tab" id="tab-rides" onclick="setMode('rides')">🚗 RIDE</div>
+    <div id="mode-tabs" role="tablist">
+      <div class="mode-tab active" id="tab-links" role="tab" tabindex="0" aria-selected="true" onclick="setMode('links')">🔗 Links</div>
+      <div class="mode-tab" id="tab-prompts" role="tab" tabindex="0" aria-selected="false" onclick="setMode('prompts')">📝 Prompts</div>
+      <div class="mode-tab" id="tab-rides" role="tab" tabindex="0" aria-selected="false" onclick="setMode('rides')">🚗 Rides</div>
     </div>
 
     <!-- Toolbar -->
     <div class="toolbar">
       <button class="btn" id="toolbar-new-btn" onclick="openAdd()">📄 New</button>
-      <button class="btn" onclick="refreshAll()">🔄</button>
+      <button class="btn" onclick="refreshAll()" title="Refresh from Google Sheets" aria-label="Refresh">🔄</button>
       <div class="sep"></div>
       <input id="search-input" type="text" placeholder="🔍 Search..." aria-label="Search" oninput="renderContent()" />
     </div>
 
     <!-- Address Bar -->
     <div class="addrbar">
-      <span>Category:</span>
-      <input id="addr-field" readonly aria-label="Current category" value="All Links" />
+      <span>Address</span>
+      <input id="addr-field" readonly aria-label="Current folder" value="C:\Vault\Links" />
     </div>
 
     <!-- Main Area -->
     <div class="main-area">
       <!-- Sidebar (tablet + desktop) -->
       <div id="sidebar">
-        <div class="sidebar-title" id="sidebar-title">CATEGORIES</div>
+        <div class="sidebar-title" id="sidebar-title">Categories</div>
         <div id="cat-list"></div>
       </div>
 
@@ -504,7 +588,7 @@
           <div class="spinner"></div>
           <span>Loading vault...</span>
         </div>
-        <div id="empty-state">Nothing here yet.<br>Tap ➕ to add one!</div>
+        <div id="empty-state"></div>
       </div>
     </div>
 
@@ -538,7 +622,7 @@
   <div class="dialog">
     <div class="titlebar">
       <div class="titlebar-left"><span>📄</span><span id="modal-title">Add New Link</span></div>
-      <div class="winbtns"><div class="winbtn" onclick="closeModal()">✕</div></div>
+      <div class="winbtns"><div class="winbtn" role="button" tabindex="0" aria-label="Close" onclick="closeModal()">✕</div></div>
     </div>
     <div class="dialog-body">
       <div class="field-row">
@@ -582,7 +666,7 @@
   <div class="dialog">
     <div class="titlebar">
       <div class="titlebar-left"><span>🚗</span><span>Ride &amp; Drive</span></div>
-      <div class="winbtns"><div class="winbtn" onclick="closeRideModal()">✕</div></div>
+      <div class="winbtns"><div class="winbtn" role="button" tabindex="0" aria-label="Close" onclick="closeRideModal()">✕</div></div>
     </div>
     <div class="dialog-body">
       <div class="field-row">
@@ -615,7 +699,7 @@
   <div class="dialog">
     <div class="titlebar">
       <div class="titlebar-left"><span>📝</span><span id="prompt-modal-title">Add New Prompt</span></div>
-      <div class="winbtns"><div class="winbtn" onclick="closePromptModal()">✕</div></div>
+      <div class="winbtns"><div class="winbtn" role="button" tabindex="0" aria-label="Close" onclick="closePromptModal()">✕</div></div>
     </div>
     <div class="dialog-body">
       <div class="field-row">
@@ -677,19 +761,19 @@
 
 <!-- Context Menu -->
 <div id="ctx-menu">
-  <div class="ctx-item" id="ctx-open" onclick="ctxOpen()">🌐 Open Link</div>
-  <div class="ctx-item" id="ctx-copy" onclick="ctxCopy()">📋 Copy URL</div>
+  <div class="ctx-item" role="menuitem" tabindex="0" id="ctx-open" onclick="ctxOpen()">🌐 Open Link</div>
+  <div class="ctx-item" role="menuitem" tabindex="0" id="ctx-copy" onclick="ctxCopy()">📋 Copy URL</div>
   <div class="ctx-sep"></div>
-  <div class="ctx-item" id="ctx-edit" onclick="ctxEdit()">✏️ Edit</div>
+  <div class="ctx-item" role="menuitem" tabindex="0" id="ctx-edit" onclick="ctxEdit()">✏️ Edit</div>
   <div class="ctx-item hidden" id="ctx-newver" onclick="ctxNewVersion()">🔁 Save as New Version</div>
-  <div class="ctx-item" onclick="ctxDelete()">🗑️ Delete</div>
+  <div class="ctx-item" role="menuitem" tabindex="0" onclick="ctxDelete()">🗑️ Delete</div>
 </div>
 
 <!-- Unlock Dialog -->
 <div class="modal-overlay" id="unlock-modal">
   <div class="dialog">
     <div class="titlebar">
-      <div class="titlebar-left"><span>🔒</span> My Vault — Locked</div>
+      <div class="titlebar-left"><span>🔒</span> Unlock My Vault</div>
     </div>
     <div class="dialog-body">
       <div class="field-row">
@@ -709,7 +793,7 @@
   <div class="dialog">
     <div class="titlebar">
       <div class="titlebar-left"><span>❓</span> Help — My Vault</div>
-      <div class="winbtns"><div class="winbtn" onclick="closeHelp()">✕</div></div>
+      <div class="winbtns"><div class="winbtn" role="button" tabindex="0" aria-label="Close" onclick="closeHelp()">✕</div></div>
     </div>
     <div class="dialog-body help-body">
       <b>MY VAULT</b><br><br>
@@ -825,20 +909,42 @@
   // ── Mode switch ──
   function setMode(m) {
     mode = m; activeCat = 'All'; selectedId = null;
-    document.getElementById('tab-links').classList.toggle('active', m === 'links');
-    document.getElementById('tab-prompts').classList.toggle('active', m === 'prompts');
-    document.getElementById('tab-rides').classList.toggle('active', m === 'rides');
+    ['links','prompts','rides'].forEach(k => {
+      const tab = document.getElementById('tab-' + k);
+      tab.classList.toggle('active', m === k);
+      tab.setAttribute('aria-selected', m === k ? 'true' : 'false');
+    });
     document.getElementById('sidebar-title').textContent =
-      m === 'links' ? 'CATEGORIES' : m === 'prompts' ? 'PROMPT CATEGORIES' : 'SAVED RIDES';
+      m === 'rides' ? 'Saved rides' : 'Categories';
     document.getElementById('search-input').value = '';
     document.getElementById('toolbar-new-btn').textContent =
       m === 'links' ? '📄 New' : m === 'prompts' ? '📝 New' : '🚗 New';
     document.getElementById('content').classList.toggle('rides-mode', m === 'rides');
-    document.getElementById('addr-field').value =
-      m === 'links' ? `All Links (${links.length} items)`
-      : m === 'prompts' ? `All Prompts (${prompts.length} items)`
-      : `🚗 All Rides (${rides.length} items)`;
     renderSidebar(); renderCatBar(); renderContent();
+  }
+
+  // Explorer-style address: C:\Vault\Links\GitHub
+  function updateAddr() {
+    const root = mode === 'links' ? 'Links' : mode === 'prompts' ? 'Prompts' : 'Rides';
+    document.getElementById('addr-field').value =
+      'C:\\Vault\\' + root + (activeCat !== 'All' && mode !== 'rides' ? '\\' + activeCat : '');
+  }
+
+  // Site icon for a link, from the domain. Falls back to the category emoji if it fails to load.
+  function faviconUrl(url) {
+    try {
+      const host = new URL(url).hostname;
+      return host ? `https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=64` : null;
+    } catch { return null; }
+  }
+
+  function emptyStateHtml(kind) {
+    const touch = window.matchMedia('(hover: none)').matches;
+    const verb = touch ? 'Tap' : 'Click';
+    const noun = mode === 'links' ? 'link' : mode === 'prompts' ? 'prompt' : 'ride';
+    if (kind === 'search') return `<span class="empty-icon">🔍</span>No ${noun}s match your search or filters.`;
+    return `<span class="empty-icon">📂</span>This folder is empty.<br>${verb} New to add your first ${noun}.` +
+      `<br><button class="btn" onclick="openAdd()">📄 New ${noun}</button>`;
   }
 
   function curEmojiMap() { return mode === 'links' ? CAT_EMOJI : mode === 'prompts' ? PROMPT_CAT_EMOJI : {}; }
@@ -856,7 +962,7 @@
     const emojiMap = curEmojiMap(), field = catField();
     const cats = ['All', ...curCats().filter(c => curItems().some(l => l[field] === c))];
     document.getElementById('cat-list').innerHTML = cats.map(c =>
-      `<div class="cat-folder${c===activeCat?' active':''}" onclick="setCat('${c}')">
+      `<div class="cat-folder${c===activeCat?' active':''}" role="button" tabindex="0" onclick="setCat('${c}')">
         ${c==='All'?'🗂️':emojiMap[c]} ${c}
       </div>`
     ).join('');
@@ -864,14 +970,13 @@
 
   // ── Category chips (mobile) ──
   function renderCatBar() {
-    if (mode === 'rides') {
-      document.getElementById('cat-chips').innerHTML = `<span class="cat-chip active">🗂️ All Rides</span>`;
-      return;
-    }
+    // Rides have no categories — hide the bar instead of showing a lone "All Rides" chip
+    document.getElementById('cat-bar').classList.toggle('hidden', mode === 'rides');
+    if (mode === 'rides') return;
     const emojiMap = curEmojiMap(), field = catField();
     const cats = ['All', ...curCats().filter(c => curItems().some(l => l[field] === c))];
     document.getElementById('cat-chips').innerHTML = cats.map(c =>
-      `<span class="cat-chip${c===activeCat?' active':''}" onclick="setCat('${c}')">
+      `<span class="cat-chip${c===activeCat?' active':''}" role="button" tabindex="0" onclick="setCat('${c}')">
         ${c==='All'?'🗂️':emojiMap[c]} ${c}
       </span>`
     ).join('');
@@ -880,10 +985,6 @@
   function setCat(c) {
     activeCat = c; selectedId = null;
     renderSidebar(); renderCatBar(); renderContent();
-    const emojiMap = curEmojiMap();
-    const label = mode === 'links' ? 'Links' : 'Prompts';
-    document.getElementById('addr-field').value =
-      c === 'All' ? `All ${label} (${curItems().length} items)` : `${emojiMap[c]} ${c}`;
   }
 
   // ── Content ──
@@ -903,10 +1004,10 @@
     });
     const content = document.getElementById('content');
     document.getElementById('ride-filter-bar')?.remove();
-    content.querySelectorAll('.link-icon').forEach(e => e.remove());
+    content.querySelectorAll('.link-icon, .ride-head').forEach(e => e.remove());
     const empty = document.getElementById('empty-state');
     if (!filtered.length) {
-      empty.innerHTML = 'Nothing here yet.<br>Tap ➕ to add one!';
+      empty.innerHTML = emptyStateHtml(curItems().length ? 'search' : 'empty');
       empty.style.display = 'block';
     }
     else {
@@ -915,14 +1016,21 @@
         const div = document.createElement('div');
         div.className = 'link-icon' + (l.id === selectedId ? ' selected' : '');
         div.dataset.id = l.id;
+        div.tabIndex = 0;
+        div.title = mode === 'links' ? l.url : l.title;
         const badges = mode === 'prompts'
           ? `<span class="version-badge">v${l.version||1}</span>` +
             (l.status && l.status !== 'active' ? `<span class="status-flag ${l.status}">${l.status}</span>` : '')
           : '';
         const hasImg = mode === 'prompts' && isImageUrl(l.result);
+        const catEmoji = emojiMap[l[field]] || '🔖';
+        const fav = mode === 'links' ? faviconUrl(l.url) : null;
         const iconHtml = hasImg
-          ? `<img src="${escHtml(l.result)}" class="result-thumb" />`
-          : (emojiMap[l[field]]||'🔖');
+          ? `<img src="${escHtml(l.result)}" class="result-thumb" alt="" />`
+          : fav
+          ? `<img src="${escHtml(fav)}" class="favicon" alt="" loading="lazy" referrerpolicy="no-referrer"
+               onerror="this.parentNode.textContent='${catEmoji}'" /><span class="fav-badge">${catEmoji}</span>`
+          : catEmoji;
         div.innerHTML = `<div class="emoji-box">${iconHtml}</div>
           <div class="icon-name">${escHtml(l.title)}${badges}</div>`;
 
@@ -932,6 +1040,14 @@
         div.addEventListener('click', () => selectLink(l.id));
         div.addEventListener('dblclick', primaryAction);
         div.addEventListener('contextmenu', e => { e.preventDefault(); showCtx(e, l.id); });
+        div.addEventListener('focus', () => selectLink(l.id));
+        div.addEventListener('keydown', e => {
+          if (e.key === 'Enter') { e.preventDefault(); primaryAction(); }
+          if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) {
+            e.preventDefault(); const r = div.getBoundingClientRect();
+            showCtx({ clientX: r.left + 20, clientY: r.bottom }, l.id);
+          }
+        });
 
         // Mobile: tap to open/copy, long-press for context menu
         div.addEventListener('touchstart', e => {
@@ -957,6 +1073,7 @@
     document.getElementById('status-count').textContent =
       filtered.length + ' object' + (filtered.length !== 1 ? 's' : '');
     updateSelectedStatus();
+    updateAddr();
   }
 
   // ── Ride & Drive ──
@@ -980,15 +1097,15 @@
     bar.innerHTML = `
       <div class="rf-tags" id="rf-tags-wrap"></div>
       <div class="rf-row">
-        <span>Max car dist:</span><input type="number" id="rf-max-km" min="0" placeholder="km" value="${rideMaxCarKm ?? ''}" oninput="setRideMaxKm(this.value)" />
-        <span>Max duration:</span><input type="number" id="rf-max-min" min="0" placeholder="min" value="${rideMaxDurationMin ?? ''}" oninput="setRideMaxMin(this.value)" />
-        <span>Sort:</span>
+        <label>Max distance <input type="number" id="rf-max-km" min="0" placeholder="km" value="${rideMaxCarKm ?? ''}" oninput="setRideMaxKm(this.value)" /> km</label>
+        <label>Max time <input type="number" id="rf-max-min" min="0" placeholder="min" value="${rideMaxDurationMin ?? ''}" oninput="setRideMaxMin(this.value)" /> min</label>
+        <label>Sort
         <select id="rf-sort" onchange="setRideSort(this.value)">
           <option value="newest" ${rideSort==='newest'?'selected':''}>Newest first</option>
           <option value="nearest" ${rideSort==='nearest'?'selected':''}>Nearest first</option>
           <option value="farthest" ${rideSort==='farthest'?'selected':''}>Farthest first</option>
-        </select>
-        <span class="rf-clear" onclick="clearRideFilters()">✕ Clear filters</span>
+        </select></label>
+        <button class="btn" onclick="clearRideFilters()">Clear filters</button>
       </div>`;
 
     // Built via DOM APIs (not string-interpolated onclick) so tag text — which can come
@@ -997,6 +1114,8 @@
     [...usedTags].forEach(t => {
       const chip = document.createElement('span');
       chip.className = 'rf-tag-chip' + (rideFilterTags.has(t) ? ' active' : '');
+      chip.setAttribute('role', 'button'); chip.tabIndex = 0;
+      chip.setAttribute('aria-pressed', rideFilterTags.has(t) ? 'true' : 'false');
       chip.textContent = t;
       chip.dataset.tag = t;
       chip.addEventListener('click', () => toggleRideFilterTag(t, chip));
@@ -1007,6 +1126,7 @@
   function toggleRideFilterTag(tag, el) {
     rideFilterTags.has(tag) ? rideFilterTags.delete(tag) : rideFilterTags.add(tag);
     el.classList.toggle('active');
+    el.setAttribute('aria-pressed', rideFilterTags.has(tag) ? 'true' : 'false');
     renderRideRows();
   }
   function setRideMaxKm(v) { rideMaxCarKm = v ? parseFloat(v) : null; renderRideRows(); }
@@ -1039,29 +1159,44 @@
     else filtered = [...filtered].sort((a,b) => new Date(b.date||0) - new Date(a.date||0));
 
     const content = document.getElementById('content');
-    content.querySelectorAll('.link-icon').forEach(e => e.remove());
+    content.querySelectorAll('.link-icon, .ride-head').forEach(e => e.remove());
     const empty = document.getElementById('empty-state');
     if (!filtered.length) {
       empty.style.display = 'block';
-      empty.innerHTML = rides.length ? 'No rides match these filters.' : 'No rides saved yet.<br>Tap ➕ to calculate one!';
+      empty.innerHTML = emptyStateHtml(rides.length ? 'search' : 'empty');
     } else {
       empty.style.display = 'none';
+      const head = document.createElement('div');
+      head.className = 'ride-head ride-cols';
+      head.innerHTML = '<span></span><span>Destination</span><span>🚗 Car</span><span>🚲 Bike</span>';
+      content.appendChild(head);
+      const num = (km, min, lbl, cls) => `<div class="ride-num ${cls}"><span class="ride-num-lbl">${lbl} </span>` +
+        (km ? `${escHtml(km)} km <small>· ${escHtml(min)} min</small>` : '<span class="na">—</span>') + '</div>';
       filtered.forEach(r => {
         const div = document.createElement('div');
-        div.className = 'link-icon ride-row' + (r.id === selectedId ? ' selected' : '');
+        div.className = 'link-icon ride-row ride-cols' + (r.id === selectedId ? ' selected' : '');
         div.dataset.id = r.id;
-        const stats = [
-          r.car_km ? `🚗 ${r.car_km} km / ${r.car_min} min` : null,
-          r.bike_km ? `🚲 ${r.bike_km} km / ${r.bike_min} min` : null,
-        ].filter(Boolean).join('  ·  ') || 'No route data';
+        div.tabIndex = 0;
         const tags = (r.tags||'').split(',').map(t=>t.trim()).filter(Boolean);
-        const tagHtml = tags.length ? `<div class="ride-stats">${tags.map(t=>`🏷️ ${escHtml(t)}`).join('  ')}</div>` : '';
+        const title = r.name || r.destination || r.link;
+        const sub = r.name && r.destination ? r.destination : '';
+        const subLine = [tags.join(', '), sub].filter(Boolean).join(' — ');
+        div.title = r.destination || r.link;
         div.innerHTML = `<div class="ride-icon">🗺️</div>
           <div class="ride-info">
-            <div class="ride-dest">${escHtml(r.name || r.destination || r.link)}</div>
-            <div class="ride-stats">${stats}</div>
-            ${tagHtml}
-          </div>`;
+            <div class="ride-dest">${escHtml(title)}</div>
+            ${subLine ? `<div class="ride-tags">${escHtml(subLine)}</div>` : ''}
+          </div>
+          ${num(r.car_km, r.car_min, '🚗', 'ride-num-car')}
+          ${num(r.bike_km, r.bike_min, '🚲', 'ride-num-bike')}`;
+        div.addEventListener('focus', () => selectLink(r.id));
+        div.addEventListener('keydown', e => {
+          if (e.key === 'Enter') { e.preventDefault(); openUrl(r.link); }
+          if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) {
+            e.preventDefault(); const b = div.getBoundingClientRect();
+            showCtx({ clientX: b.left + 20, clientY: b.bottom }, r.id);
+          }
+        });
         div.addEventListener('click', () => selectLink(r.id));
         div.addEventListener('dblclick', () => openUrl(r.link));
         div.addEventListener('contextmenu', e => { e.preventDefault(); showCtx(e, r.id); });
@@ -1077,8 +1212,8 @@
     }
     document.getElementById('status-count').textContent =
       filtered.length + ' of ' + rides.length + ' ride' + (rides.length !== 1 ? 's' : '');
-    document.getElementById('addr-field').value = `🚗 All Rides (${rides.length} items)`;
     updateSelectedStatus();
+    updateAddr();
   }
 
   function renderModalTagChips() {
@@ -1087,6 +1222,8 @@
     RIDE_TAG_PRESETS.forEach(t => {
       const chip = document.createElement('span');
       chip.className = 'modal-tag-chip' + (selectedRideTags.has(t) ? ' active' : '');
+      chip.setAttribute('role', 'button'); chip.tabIndex = 0;
+      chip.setAttribute('aria-pressed', selectedRideTags.has(t) ? 'true' : 'false');
       chip.textContent = t;
       chip.addEventListener('click', () => toggleModalTag(t));
       wrap.appendChild(chip);
@@ -1518,7 +1655,11 @@
     if (!document.getElementById('ctx-menu').contains(e.target)) hideCtx();
   });
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { closeModal(); closePromptModal(); closeHelp(); hideCtx(); }
+    if (e.key === 'Escape') { closeModal(); closePromptModal(); closeRideModal(); closeHelp(); hideCtx(); }
+    // Make the div-based controls (tabs, menus, chips, folders) work from the keyboard
+    if ((e.key === 'Enter' || e.key === ' ') && e.target.matches?.('[role="button"],[role="tab"],[role="menuitem"]')) {
+      e.preventDefault(); e.target.click();
+    }
     if ((e.ctrlKey||e.metaKey) && e.key==='n') { e.preventDefault(); openAdd(); }
   });
   document.getElementById('link-modal').addEventListener('keydown', e => {
