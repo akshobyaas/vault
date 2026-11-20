@@ -132,7 +132,7 @@
        Selectors are scoped under #content so they beat the generic .link-icon tile styles. */
     #content.rides-mode { display: block; padding: 0; }
     .ride-cols {
-      display: grid; grid-template-columns: 28px minmax(0, 1fr) 170px 170px;
+      display: grid; grid-template-columns: 28px minmax(0, 1fr) 195px 195px;
       align-items: center; column-gap: 10px;
     }
     .ride-head {
@@ -672,7 +672,7 @@
 <div class="modal-overlay" id="ride-modal">
   <div class="dialog">
     <div class="titlebar">
-      <div class="titlebar-left"><span>🚗</span><span>Ride &amp; Drive</span></div>
+      <div class="titlebar-left"><span>🚗</span><span id="ride-modal-title">Ride &amp; Drive</span></div>
       <div class="winbtns"><div class="winbtn" role="button" tabindex="0" aria-label="Close" onclick="closeRideModal()">✕</div></div>
     </div>
     <div class="dialog-body">
@@ -845,6 +845,7 @@
   let activeCat = 'All', editId = null, ctxId = null, selectedId = null;
   let longPressTimer = null;
   let rideCalcResult = null;    // holds the last /api/distance response awaiting save
+  let rideEditId = null;        // id of the ride being edited (null = adding a new one)
   let selectedRideTags = new Set(); // tags picked in the Add Ride modal
   let rideFilterTags = new Set();   // active tag filters in the ride list
   let rideMaxCarKm = null, rideMaxDurationMin = null; // active distance/duration filters
@@ -1253,6 +1254,8 @@
 
   function openRideAdd() {
     rideCalcResult = null;
+    rideEditId = null;
+    document.getElementById('ride-modal-title').textContent = 'Ride & Drive';
     selectedRideTags = new Set();
     document.getElementById('r-link').value = '';
     document.getElementById('r-name').value = '';
@@ -1266,6 +1269,35 @@
   }
 
   function closeRideModal() { document.getElementById('ride-modal').classList.remove('open'); }
+
+  // Edit a saved ride: name and tags save directly; a changed link needs Calculate first.
+  function openRideEdit(id) {
+    const r = rides.find(x => x.id === id); if (!r) return;
+    rideEditId = id;
+    const num = v => (v === '' || v == null) ? null : Number(v);
+    rideCalcResult = {
+      link: r.link, destination: r.destination,
+      car: num(r.car_km) != null ? { distance_km: num(r.car_km), duration_min: num(r.car_min) } : null,
+      bike: num(r.bike_km) != null ? { distance_km: num(r.bike_km), duration_min: num(r.bike_min) } : null,
+    };
+    const tags = (r.tags || '').split(',').map(t => t.trim()).filter(Boolean);
+    selectedRideTags = new Set(tags.filter(t => RIDE_TAG_PRESETS.includes(t)));
+    document.getElementById('ride-modal-title').textContent = 'Edit Ride';
+    document.getElementById('r-link').value = r.link || '';
+    document.getElementById('r-name').value = r.name || '';
+    document.getElementById('r-tags-custom').value = tags.filter(t => !RIDE_TAG_PRESETS.includes(t)).join(', ');
+    renderModalTagChips();
+    const box = document.getElementById('r-result');
+    box.innerHTML = `
+      <div class="rr-line"><b>${escHtml(r.destination || '')}</b></div>
+      <div class="rr-line"><span>🚗 Car</span><span>${fmtTrip(rideCalcResult.car)}</span></div>
+      <div class="rr-line"><span>🏍️ Motorcycle</span><span>${fmtTrip(rideCalcResult.bike)}</span></div>
+      <div class="rr-note">Changed the link? Press Calculate before saving.</div>`;
+    box.classList.remove('hidden');
+    document.getElementById('r-save-btn').classList.remove('hidden');
+    document.getElementById('ride-modal').classList.add('open');
+    setTimeout(() => document.getElementById('r-name').focus(), 100);
+  }
 
   // "28.33 km · ~46 min (22–71)"
   function fmtTrip(t) {
@@ -1311,6 +1343,10 @@
 
   async function saveRide() {
     if (!rideCalcResult) return;
+    if (document.getElementById('r-link').value.trim() !== (rideCalcResult.link || '').trim()) {
+      showToast('⚠️ The link changed — press Calculate first');
+      return;
+    }
     const btn = document.getElementById('r-save-btn');
     btn.disabled = true; btn.textContent = '⏳...';
     setSyncStatus('🔄 Saving...');
@@ -1318,8 +1354,9 @@
       const nameOverride = document.getElementById('r-name').value.trim();
       const customTags = document.getElementById('r-tags-custom').value.split(',').map(t=>t.trim()).filter(Boolean);
       const allTags = [...new Set([...selectedRideTags, ...customTags])];
+      const original = rideEditId ? rides.find(x => x.id === rideEditId) : null;
       const item = {
-        id: String(Date.now()),
+        id: original ? original.id : String(Date.now()),
         destination: rideCalcResult.destination,
         name: nameOverride,
         link: rideCalcResult.link,
@@ -1328,11 +1365,18 @@
         car_min: rideCalcResult.car?.duration_min ?? '',
         bike_km: rideCalcResult.bike?.distance_km ?? '',
         bike_min: rideCalcResult.bike?.duration_min ?? '',
-        date: new Date().toISOString(),
+        date: original ? original.date : new Date().toISOString(),
       };
-      await apiFetch('POST', 'rides', item);
-      rides.push(item);
-      showToast('✔ Ride saved!');
+      if (original) {
+        await apiFetch('PUT', 'rides', item);
+        rides[rides.indexOf(original)] = item;
+        showToast('✔ Ride updated!');
+      } else {
+        await apiFetch('POST', 'rides', item);
+        rides.push(item);
+        showToast('✔ Ride saved!');
+      }
+      rideEditId = null;
       setSyncStatus('✅ Synced');
       closeRideModal(); renderSidebar(); renderCatBar(); renderContent();
     } catch (err) {
@@ -1397,6 +1441,7 @@
 
   function openEdit(id) {
     if (mode === 'prompts') return openPromptEdit(id);
+    if (mode === 'rides') return openRideEdit(id);
     const l = links.find(x => x.id === id); if (!l) return;
     editId = id;
     document.getElementById('modal-title').textContent = 'Edit Link';
@@ -1609,7 +1654,7 @@
     document.getElementById('ctx-copy').textContent =
       mode === 'links' ? '📋 Copy URL' : mode === 'rides' ? '📋 Copy Link' : '📋 Copy Prompt';
     document.getElementById('ctx-newver').classList.toggle('hidden', mode !== 'prompts');
-    document.getElementById('ctx-edit').classList.toggle('hidden', mode === 'rides');
+    document.getElementById('ctx-edit').classList.remove('hidden');
     const menu = document.getElementById('ctx-menu');
     menu.style.transform = '';
     menu.style.left = Math.min(e.clientX, window.innerWidth - 180) + 'px';
@@ -1621,7 +1666,7 @@
     document.getElementById('ctx-copy').textContent =
       mode === 'links' ? '📋 Copy URL' : mode === 'rides' ? '📋 Copy Link' : '📋 Copy Prompt';
     document.getElementById('ctx-newver').classList.toggle('hidden', mode !== 'prompts');
-    document.getElementById('ctx-edit').classList.toggle('hidden', mode === 'rides');
+    document.getElementById('ctx-edit').classList.remove('hidden');
   }
   function hideCtx() {
     const m = document.getElementById('ctx-menu');
