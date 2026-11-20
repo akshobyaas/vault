@@ -630,7 +630,8 @@
       .task-item { display: none; }
       #start-btn { font-size: 15px; padding: 2px 8px; }
     }
-    @media (max-width: 370px) {
+    /* Narrower phones (360–399px): car and motorcycle on separate lines so long trips never overflow */
+    @media (max-width: 399px) {
       .ride-row .ride-num-bike { grid-row: 3; grid-column: 2 / span 3; }
       .ride-cols { grid-template-rows: auto auto auto; }
     }
