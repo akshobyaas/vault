@@ -90,7 +90,8 @@
       border-bottom: 2px solid #808080; flex-wrap: wrap;
     }
     .toolbar .sep { width: 1px; height: 24px; background: #808080; border-right: 1px solid #fff; margin: 0 2px; }
-    #search-input { flex: 1; min-width: 120px; max-width: 300px; }
+    #search-input { flex: 1; min-width: 120px; max-width: 300px;
+      padding-left: 26px; background: #fff url(icons/search.svg) no-repeat 5px 50% / 16px 16px; image-rendering: pixelated; }
 
     /* ── Address Bar ── */
     .addrbar {
@@ -598,15 +599,15 @@
     <div id="mode-tabs" role="tablist">
       <div class="mode-tab active" id="tab-links" role="tab" tabindex="0" aria-selected="true" onclick="setMode('links')"><img class="px" src="icons/link.svg" alt=""> Links</div>
       <div class="mode-tab" id="tab-prompts" role="tab" tabindex="0" aria-selected="false" onclick="setMode('prompts')"><img class="px" src="icons/prompt.svg" alt=""> Prompts</div>
-      <div class="mode-tab" id="tab-rides" role="tab" tabindex="0" aria-selected="false" onclick="setMode('rides')"><img class="px" src="icons/ride.svg" alt=""> Rides</div>
+      <div class="mode-tab" id="tab-rides" role="tab" tabindex="0" aria-selected="false" onclick="setMode('rides')"><img class="px" src="icons/moto.svg" alt=""> Rides</div>
     </div>
 
     <!-- Toolbar -->
     <div class="toolbar">
-      <button class="btn" id="toolbar-new-btn" onclick="openAdd()"><img class="px" src="icons/new.svg" alt=""> New</button>
+      <button class="btn" id="toolbar-new-btn" onclick="openAdd()"><img class="px" src="icons/plus.svg" alt=""> New</button>
       <button class="btn" onclick="refreshAll()" title="Refresh from Google Sheets" aria-label="Refresh"><img class="px" src="icons/refresh.svg" alt=""></button>
       <div class="sep"></div>
-      <input id="search-input" type="text" placeholder="🔍 Search..." aria-label="Search" oninput="renderContent()" />
+      <input id="search-input" type="text" placeholder="Search..." aria-label="Search" oninput="renderContent()" />
     </div>
 
     <!-- Address Bar -->
@@ -664,7 +665,7 @@
   <div class="sm-items">
     <div class="sm-item" role="menuitem" tabindex="0" onclick="startDo(() => { setMode('links'); openAdd(); })"><span class="sm-ico"><img class="px px32" src="icons/link.svg" alt=""></span>New link</div>
     <div class="sm-item" role="menuitem" tabindex="0" onclick="startDo(() => { setMode('prompts'); openAdd(); })"><span class="sm-ico"><img class="px px32" src="icons/prompt.svg" alt=""></span>New prompt</div>
-    <div class="sm-item" role="menuitem" tabindex="0" onclick="startDo(() => { setMode('rides'); openAdd(); })"><span class="sm-ico"><img class="px px32" src="icons/ride.svg" alt=""></span>New ride</div>
+    <div class="sm-item" role="menuitem" tabindex="0" onclick="startDo(() => { setMode('rides'); openAdd(); })"><span class="sm-ico"><img class="px px32" src="icons/moto.svg" alt=""></span>New ride</div>
     <div class="sm-sep"></div>
     <div class="sm-item" role="menuitem" tabindex="0" onclick="startDo(refreshAll)"><span class="sm-ico"><img class="px px32" src="icons/refresh.svg" alt=""></span>Refresh</div>
     <div class="sm-item" role="menuitem" tabindex="0" onclick="startDo(showHelp)"><span class="sm-ico"><img class="px px32" src="icons/help.svg" alt=""></span>Help</div>
@@ -721,7 +722,7 @@
 <div class="modal-overlay" id="ride-modal">
   <div class="dialog">
     <div class="titlebar">
-      <div class="titlebar-left"><span><img class="px" src="icons/ride.svg" alt=""></span><span id="ride-modal-title">Ride &amp; Drive</span></div>
+      <div class="titlebar-left"><span><img class="px" src="icons/moto.svg" alt=""></span><span id="ride-modal-title">Ride &amp; Drive</span></div>
       <div class="winbtns"><div class="winbtn" role="button" tabindex="0" aria-label="Close" onclick="closeRideModal()">✕</div></div>
     </div>
     <div class="dialog-body">
@@ -853,9 +854,9 @@
     </div>
     <div class="dialog-body help-body">
       <b>MY VAULT</b><br><br>
-      <img class="px" src="icons/link.svg" alt=""> <b>Links</b> / <img class="px" src="icons/prompt.svg" alt=""> <b>Prompts</b> / <img class="px" src="icons/ride.svg" alt=""> <b>Rides</b> — Switch modes at the top<br>
-      <img class="px" src="icons/new.svg" alt=""> <b>New</b> — Add a link, prompt, or calculate a ride (depends on mode)<br>
-      🔍 <b>Search</b> — Real-time search across titles, tags &amp; text<br>
+      <img class="px" src="icons/link.svg" alt=""> <b>Links</b> / <img class="px" src="icons/prompt.svg" alt=""> <b>Prompts</b> / <img class="px" src="icons/moto.svg" alt=""> <b>Rides</b> — Switch modes at the top<br>
+      <img class="px" src="icons/plus.svg" alt=""> <b>New</b> — Add a link, prompt, or calculate a ride (depends on mode)<br>
+      <img class="px" src="icons/search.svg" alt=""> <b>Search</b> — Real-time search across titles, tags &amp; text<br>
       📁 <b>Sidebar/bar</b> — Filter by category<br>
       🖱️ <b>Right-click / long-press</b> — Open/copy, edit, new version, delete<br>
       🖼️ <b>Result</b> — Paste an image URL or describe the output; image links show as a thumbnail<br>
@@ -974,8 +975,7 @@
     document.getElementById('sidebar-title').textContent =
       m === 'rides' ? 'Saved rides' : 'Categories';
     document.getElementById('search-input').value = '';
-    document.getElementById('toolbar-new-btn').innerHTML =
-      pxIcon(m === 'links' ? 'new' : m === 'prompts' ? 'prompt' : 'ride') + ' New';
+    document.getElementById('toolbar-new-btn').innerHTML = pxIcon('plus') + ' New';
     document.getElementById('content').classList.toggle('rides-mode', m === 'rides');
     renderSidebar(); renderCatBar(); renderContent();
   }
@@ -1009,9 +1009,9 @@
     const touch = window.matchMedia('(hover: none)').matches;
     const verb = touch ? 'Tap' : 'Click';
     const noun = mode === 'links' ? 'link' : mode === 'prompts' ? 'prompt' : 'ride';
-    if (kind === 'search') return `<span class="empty-icon">🔍</span>No ${noun}s match your search or filters.`;
+    if (kind === 'search') return `<span class="empty-icon"><img class="px px32" src="icons/search.svg" alt=""></span>No ${noun}s match your search or filters.`;
     return `<span class="empty-icon">📂</span>This folder is empty.<br>${verb} New to add your first ${noun}.` +
-      `<br><button class="btn" onclick="openAdd()">${pxIcon('new')} New ${noun}</button>`;
+      `<br><button class="btn" onclick="openAdd()">${pxIcon('plus')} New ${noun}</button>`;
   }
 
   function curEmojiMap() { return mode === 'links' ? CAT_EMOJI : mode === 'prompts' ? PROMPT_CAT_EMOJI : {}; }
