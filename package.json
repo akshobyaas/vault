@@ -1,6 +1,14 @@
 {
   "name": "my-vault",
-  "version": "1.0.0",
+  "version": "2.0.0",
+  "private": true,
+  "description": "A private Windows 95-style directory for links, AI prompts and bike rides, backed by Google Sheets and hosted on Vercel.",
+  "author": "Akshobya A S",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/akshobyaas/vault.git"
+  },
   "engines": {
     "node": "24.x"
   }

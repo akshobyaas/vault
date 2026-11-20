@@ -1,0 +1,6 @@
+# Normalise line endings in the repo; each computer checks out its own style
+* text=auto
+
+# Binary files: never touch
+*.png binary
+*.ico binary

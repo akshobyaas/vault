@@ -1,7 +1,12 @@
-# ── Secrets — NEVER push these ──
+# ── Secrets — never commit these ──
 .env
-.env.local
-.env.production
+.env.*
+!.env.example
+*.pem
+*.key
+credentials*.json
+client_secret*.json
+token*.json
 
 # ── Node ──
 node_modules/
@@ -10,6 +15,10 @@ npm-debug.log*
 # ── Vercel ──
 .vercel
 
-# ── OS files ──
+# ── Editors & OS ──
+.vscode/
+.idea/
+*.swp
 .DS_Store
 Thumbs.db
+desktop.ini
