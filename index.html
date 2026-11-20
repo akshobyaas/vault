@@ -4,12 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>My Vault</title>
-  <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet" />
   <style>
+    /* One monospace stack, chosen per platform: Consolas (Windows), Menlo (Mac), Roboto Mono / Droid Sans Mono (Android) */
+    :root { --ui-font: Consolas, 'Lucida Console', Menlo, 'Roboto Mono', 'Droid Sans Mono', 'Courier New', monospace; }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { height: 100%; overflow: hidden; }
     body {
-      font-family: 'VT323', monospace;
+      font-family: var(--ui-font);
       background: #008080;
       height: 100vh;
       height: 100dvh;
@@ -24,14 +25,14 @@
       background: #c0c0c0;
       border-top: 2px solid #fff; border-left: 2px solid #fff;
       border-right: 2px solid #808080; border-bottom: 2px solid #808080;
-      font-family: 'VT323', monospace; font-size: 16px;
+      font-family: var(--ui-font); font-size: 16px;
       padding: 4px 14px; cursor: pointer; color: #000; min-width: 70px;
       touch-action: manipulation;
     }
     .btn:active { border-top: 2px solid #808080; border-left: 2px solid #808080; border-right: 2px solid #fff; border-bottom: 2px solid #fff; }
     .btn:disabled { color: #808080; cursor: default; }
     input, select, textarea {
-      font-family: 'VT323', monospace; font-size: 16px;
+      font-family: var(--ui-font); font-size: 16px;
       background: #fff;
       border-top: 2px solid #808080; border-left: 2px solid #808080;
       border-right: 2px solid #fff; border-bottom: 2px solid #fff;
@@ -358,7 +359,7 @@
       background: #c0c0c0;
       border-top: 2px solid #fff; border-left: 2px solid #fff;
       border-right: 2px solid #808080; border-bottom: 2px solid #808080;
-      font-family: 'VT323', monospace; font-size: 17px; font-weight: 700;
+      font-family: var(--ui-font); font-size: 17px; font-weight: 700;
       padding: 2px 10px; cursor: pointer; touch-action: manipulation;
     }
     .task-item {
@@ -1100,6 +1101,7 @@
       bar.id = 'ride-filter-bar';
       bar.className = 'ride-filter-bar';
       content.prepend(bar);
+      forceRebuild = true; // a fresh bar is empty — always fill it (it's removed when leaving Rides)
     }
     const usedTags = new Set(RIDE_TAG_PRESETS);
     rides.forEach(r => (r.tags||'').split(',').map(t=>t.trim()).filter(Boolean).forEach(t => usedTags.add(t)));
@@ -1192,7 +1194,8 @@
         div.tabIndex = 0;
         const tags = (r.tags||'').split(',').map(t=>t.trim()).filter(Boolean);
         const title = r.name || r.destination || r.link;
-        const sub = r.name && r.destination ? r.destination : '';
+        const isUrl = v => /^https?:\/\//i.test(v || '');
+        const sub = r.name && r.destination && !isUrl(r.destination) ? r.destination : '';
         const subLine = [tags.join(', '), sub].filter(Boolean).join(' — ');
         div.title = r.destination || r.link;
         div.innerHTML = `<div class="ride-icon">🗺️</div>
