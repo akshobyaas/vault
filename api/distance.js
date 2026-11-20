@@ -13,6 +13,14 @@
 // a geocoding round-trip on every request.
 const ORIGIN = { lat: 12.372889, lng: 76.585028 };
 
+const crypto = require('crypto');
+function keyMatches(given, expected) {
+  if (typeof given !== 'string' || !given) return false;
+  const a = crypto.createHash('sha256').update(given).digest();
+  const b = crypto.createHash('sha256').update(expected).digest();
+  return crypto.timingSafeEqual(a, b);
+}
+
 async function safeFetch(url, opts = {}) {
   const res = await fetch(url, opts);
   const text = await res.text();
@@ -220,6 +228,7 @@ module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Vault-Key');
   res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Cache-Control', 'no-store');
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
@@ -227,17 +236,18 @@ module.exports = async function handler(req, res) {
   if (!VAULT_KEY) {
     return res.status(500).json({ error: 'Server misconfigured: VAULT_API_KEY is not set' });
   }
-  if (req.headers['x-vault-key'] !== VAULT_KEY) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-
+  // Rate limit first, so wrong-key guesses are throttled too
   const clientIp = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket?.remoteAddress || 'unknown';
   if (isRateLimited(clientIp)) {
     return res.status(429).json({ error: 'Too many requests — please slow down' });
   }
+  if (!keyMatches(req.headers['x-vault-key'], VAULT_KEY)) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
 
   const { link } = req.body || {};
-  if (!link) return res.status(400).json({ error: 'Link (or place name) required' });
+  if (!link || typeof link !== 'string') return res.status(400).json({ error: 'Link (or place name) required' });
+  if (link.length > 2000) return res.status(400).json({ error: 'Link is too long' });
 
   try {
     const [origin, dest] = await Promise.all([getOrigin(), resolveDestination(link)]);

@@ -2,6 +2,30 @@
 // Handles both "links" (existing Vault tab) and "prompts" (new Prompts tab)
 // via a `type` query param / body field. Defaults to "links" for backward compatibility.
 
+const crypto = require('crypto');
+
+// Constant-time key check, so response timing can't be used to guess the key character by character.
+function keyMatches(given, expected) {
+  if (typeof given !== 'string' || !given) return false;
+  const a = crypto.createHash('sha256').update(given).digest();
+  const b = crypto.createHash('sha256').update(expected).digest();
+  return crypto.timingSafeEqual(a, b);
+}
+
+// Best-effort brute-force brake: after 10 wrong keys from one IP in 15 minutes, refuse for the rest of the window.
+// In-memory, so it resets on cold starts, but it makes guessing the key from one place impractical.
+const failedAuth = new Map(); // ip -> [timestamps]
+function tooManyFailures(ip) {
+  const cutoff = Date.now() - 15 * 60_000;
+  const hits = (failedAuth.get(ip) || []).filter(t => t > cutoff);
+  failedAuth.set(ip, hits);
+  return hits.length >= 10;
+}
+function recordFailure(ip) { (failedAuth.get(ip) || failedAuth.set(ip, []).get(ip)).push(Date.now()); }
+
+const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
+const MAX_UPLOAD_BASE64 = 4 * 1024 * 1024; // ~3 MB image; Vercel's request limit is 4.5 MB
+
 async function safeFetch(url, opts = {}) {
   const res = await fetch(url, opts);
   const text = await res.text();
@@ -97,6 +121,7 @@ module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Vault-Key');
   res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Cache-Control', 'no-store'); // personal data: never cache in browsers or proxies
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
@@ -106,7 +131,12 @@ module.exports = async function handler(req, res) {
   if (!VAULT_KEY) {
     return res.status(500).json({ error: 'Server misconfigured: VAULT_API_KEY is not set' });
   }
-  if (req.headers['x-vault-key'] !== VAULT_KEY) {
+  const clientIp = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket?.remoteAddress || 'unknown';
+  if (tooManyFailures(clientIp)) {
+    return res.status(429).json({ error: 'Too many wrong keys — try again in 15 minutes' });
+  }
+  if (!keyMatches(req.headers['x-vault-key'], VAULT_KEY)) {
+    recordFailure(clientIp);
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
@@ -150,7 +180,8 @@ module.exports = async function handler(req, res) {
     });
 
     if (!tokenData.access_token) {
-      return res.status(500).json({ error: 'OAuth failed', detail: tokenData });
+      // Only pass on Google's short error code, not the whole response
+      return res.status(500).json({ error: 'Google sign-in failed: ' + (tokenData.error || 'unknown') });
     }
     const token = tokenData.access_token;
 
@@ -158,9 +189,16 @@ module.exports = async function handler(req, res) {
     if (req.method === 'POST' && req.body?.type === 'upload') {
       const { filename, mimeType, data } = req.body;
       if (!data || !mimeType) return res.status(400).json({ error: 'Image data and mimeType required' });
+      // Only real images, as plain base64, within the size limit. The file becomes public on Drive,
+      // and mimeType goes into a multipart header, so nothing else may get through.
+      if (!ALLOWED_IMAGE_TYPES.has(mimeType)) return res.status(400).json({ error: 'Only JPEG, PNG, WebP or GIF images are allowed' });
+      if (typeof data !== 'string' || data.length > MAX_UPLOAD_BASE64 || !/^[A-Za-z0-9+/]+={0,2}$/.test(data)) {
+        return res.status(400).json({ error: 'Image is too large or not valid' });
+      }
+      const safeName = String(filename || `prompt-${Date.now()}`).replace(/[^\w.\- ]/g, '_').slice(0, 100);
 
-      const boundary = 'vaultupload' + Date.now();
-      const metadata = JSON.stringify({ name: filename || `prompt-${Date.now()}`, mimeType });
+      const boundary = 'vaultupload' + crypto.randomBytes(12).toString('hex');
+      const metadata = JSON.stringify({ name: safeName, mimeType });
       const multipartBody =
         `--${boundary}\r\n` +
         `Content-Type: application/json; charset=UTF-8\r\n\r\n` +

@@ -182,6 +182,7 @@
       background: #c0c0c0; padding: 0 4px; font-size: 15px;
     }
     .rf-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+    .rf-toggle { display: none; }
     /* Tag chips behave like Win95 toggle buttons: raised when off, pressed when on */
     .rf-tag-chip, .modal-tag-chip {
       font-size: 15px; padding: 2px 9px; cursor: pointer; user-select: none;
@@ -443,8 +444,8 @@
     .modal-overlay {
       display: none; position: fixed; inset: 0;
       background: rgba(0,0,0,0.4); z-index: 200;
-      align-items: center; justify-content: center;
-      padding: 12px;
+      align-items: flex-start; justify-content: center;
+      padding: 12px; overflow-y: auto; overscroll-behavior: contain;
     }
     .modal-overlay.open { display: flex; }
     .dialog {
@@ -452,6 +453,7 @@
       border-top: 2px solid #fff; border-left: 2px solid #fff;
       border-right: 2px solid #808080; border-bottom: 2px solid #808080;
       width: 100%; max-width: 440px;
+      margin: auto 0; /* centred when it fits, scrollable from the top when it doesn't */
     }
     .dialog-body { padding: 14px 16px; }
     .field-row { margin-bottom: 10px; }
@@ -502,6 +504,26 @@
       #main-window { max-width: 100%; }
       #sidebar { width: 190px; }
       #content { grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); }
+    }
+
+    /* Tablet portrait (OnePlus Pad 2 ~848px): give ride names more room */
+    @media (max-width: 1000px) {
+      .ride-cols { grid-template-columns: 24px minmax(0, 1fr) 168px 168px; column-gap: 8px; }
+    }
+
+    /* Phone in landscape / any short screen: drop the menu and address bars so content gets the height */
+    @media (max-height: 500px) and (orientation: landscape) {
+      .menubar, .addrbar { display: none; }
+      #main-window > .titlebar { padding: 2px 6px; }
+      #mode-tabs { padding-top: 3px; }
+      .mode-tab { padding-top: 2px; padding-bottom: 2px; }
+      .mode-tab.active { padding-top: 4px; padding-bottom: 3px; }
+      .toolbar { padding: 3px 6px; }
+      #desktop { padding: 4px; }
+      .rf-toggle { display: inline-block; }
+      .ride-filter-bar::before { display: none; }
+      .ride-filter-bar { margin: 6px 8px; padding: 6px 8px; }
+      .ride-filter-bar.collapsed .rf-tags, .ride-filter-bar.collapsed .rf-row { display: none; }
     }
 
     /* ════════════════════════════════
@@ -556,14 +578,20 @@
 
       /* Rides: stack each row; stats go on a second line */
       .ride-head { display: none; }
-      .ride-cols { grid-template-columns: 24px minmax(0, 1fr) auto; grid-template-rows: auto auto; row-gap: 2px; }
+      /* Rides: name on line 1, car + motorcycle side by side on line 2 (each sized to its text, so they never overlap) */
+      .ride-cols { grid-template-columns: 24px auto auto minmax(0, 1fr); grid-template-rows: auto auto; row-gap: 2px; column-gap: 14px; }
       .ride-row .ride-icon { grid-row: 1 / span 2; align-self: start; padding-top: 2px; }
-      .ride-row .ride-info { grid-column: 2 / span 2; }
-      .ride-row .ride-num { grid-row: 2; font-size: 15px; }
+      .ride-row .ride-info { grid-column: 2 / span 3; }
+      .ride-row .ride-num { grid-row: 2; font-size: 14px; }
+      #content .ride-row.ride-cols { column-gap: 12px; } /* beats the generic "gap: 0" on ride rows */
       .ride-row .ride-num-car { grid-column: 2; }
-      .ride-row .ride-num-bike { grid-column: 3; justify-self: end; }
+      .ride-row .ride-num-bike { grid-column: 3; }
       .ride-row .ride-num-lbl { display: inline; }
-      .ride-filter-bar { margin: 14px 8px 8px; }
+      /* Filters fold away behind one button so the list starts near the top */
+      .rf-toggle { display: inline-block; }
+      .ride-filter-bar::before { display: none; }
+      .ride-filter-bar { margin: 8px; padding: 8px; }
+      .ride-filter-bar.collapsed .rf-tags, .ride-filter-bar.collapsed .rf-row { display: none; }
       .rf-row .btn { margin-left: 0; }
 
       /* Bigger dialog on mobile */
@@ -578,6 +606,11 @@
       .task-item { display: none; }
       #start-btn { font-size: 15px; padding: 2px 8px; }
     }
+    @media (max-width: 370px) {
+      .ride-row .ride-num-bike { grid-row: 3; grid-column: 2 / span 3; }
+      .ride-cols { grid-template-rows: auto auto auto; }
+    }
+
     @media (prefers-reduced-motion: reduce) {
       .spinner { animation-duration: 2.4s; }
       #toast, #sidebar { transition: none; }
@@ -925,6 +958,7 @@
   let selectedRideTags = new Set(); // tags picked in the Add Ride modal
   let rideFilterTags = new Set();   // active tag filters in the ride list
   let rideMaxCarKm = null, rideMaxDurationMin = null; // active distance/duration filters
+  let rideFiltersOpen = false;  // phone-only: filter panel folded by default
   let rideSort = 'newest'; // 'newest' | 'nearest' | 'farthest'
 
   // ── Clock ──
@@ -943,7 +977,7 @@
     let url = '/api/sheets';
     const params = [];
     if (method === 'GET' || method === 'DELETE') params.push('type=' + type);
-    if (method === 'DELETE' && queryId) params.push('id=' + queryId);
+    if (method === 'DELETE' && queryId) params.push('id=' + encodeURIComponent(queryId));
     if (params.length) url += '?' + params.join('&');
     const opts = { method, headers: { 'Content-Type': 'application/json', 'X-Vault-Key': getVaultKey() } };
     if (body) opts.body = JSON.stringify({ ...body, type });
@@ -1114,7 +1148,7 @@
         div.title = mode === 'links' ? l.url : l.title;
         const badges = mode === 'prompts'
           ? `<span class="version-badge">v${l.version||1}</span>` +
-            (l.status && l.status !== 'active' ? `<span class="status-flag ${l.status}">${l.status}</span>` : '')
+            (l.status && l.status !== 'active' ? `<span class="status-flag ${['draft','experimental','deprecated'].includes(l.status) ? l.status : ''}">${escHtml(l.status)}</span>` : '')
           : '';
         const hasImg = mode === 'prompts' && isImageUrl(l.result);
         const catIcon = iconMap[l[field]] || 'other';
@@ -1189,7 +1223,9 @@
     if (!forceRebuild && key === _rideTagUniverseKey) return; // chips unchanged, don't touch DOM (preserves input focus)
     _rideTagUniverseKey = key;
 
+    bar.classList.toggle('collapsed', !rideFiltersOpen);
     bar.innerHTML = `
+      <button class="btn rf-toggle" id="rf-toggle" aria-expanded="${rideFiltersOpen}" onclick="toggleRideFilters()"></button>
       <div class="rf-tags" id="rf-tags-wrap"></div>
       <div class="rf-row">
         <label>Max distance <input type="number" id="rf-max-km" min="0" placeholder="km" value="${rideMaxCarKm ?? ''}" oninput="setRideMaxKm(this.value)" /> km</label>
@@ -1218,6 +1254,20 @@
     });
   }
 
+  // Phones: the filter panel starts folded; the button shows how many filters are on
+  function toggleRideFilters() {
+    rideFiltersOpen = !rideFiltersOpen;
+    const bar = document.getElementById('ride-filter-bar');
+    bar?.classList.toggle('collapsed', !rideFiltersOpen);
+    updateRideFilterToggle();
+  }
+  function updateRideFilterToggle() {
+    const btn = document.getElementById('rf-toggle'); if (!btn) return;
+    const n = rideFilterTags.size + (rideMaxCarKm != null ? 1 : 0) + (rideMaxDurationMin != null ? 1 : 0);
+    btn.textContent = (rideFiltersOpen ? '▴ ' : '▾ ') + 'Filters' + (n ? ` (${n} on)` : '');
+    btn.setAttribute('aria-expanded', rideFiltersOpen ? 'true' : 'false');
+  }
+
   function toggleRideFilterTag(tag, el) {
     rideFilterTags.has(tag) ? rideFilterTags.delete(tag) : rideFilterTags.add(tag);
     el.classList.toggle('active');
@@ -1238,9 +1288,11 @@
   }
 
   function renderRideRows() {
+    updateRideFilterToggle();
     const q = document.getElementById('search-input').value.toLowerCase().trim();
     let filtered = rides.filter(r => {
-      if (q && !(r.destination||'').toLowerCase().includes(q)) return false;
+      // search the name you gave it and its tags too, not just the address
+      if (q && ![r.name, r.destination, r.tags].some(v => (v||'').toLowerCase().includes(q))) return false;
       if (rideFilterTags.size) {
         const tags = (r.tags||'').split(',').map(t=>t.trim()).filter(Boolean);
         if (![...rideFilterTags].some(t => tags.includes(t))) return false;
@@ -1266,7 +1318,7 @@
       head.innerHTML = '<span></span><span>Destination</span><span>' + pxIcon('ride') + ' Car</span><span>' + pxIcon('moto') + ' Motorcycle</span>';
       content.appendChild(head);
       const num = (km, min, lbl, cls) => `<div class="ride-num ${cls}"><span class="ride-num-lbl">${lbl} </span>` +
-        (km ? `${escHtml(km)} km <small>· ~${escHtml(min)} min</small>` : '<span class="na">—</span>') + '</div>';
+        (km ? `${fmtKm(km)} km <small>· ~${fmtMin(min)}</small>` : '<span class="na">—</span>') + '</div>';
       filtered.forEach(r => {
         const div = document.createElement('div');
         div.className = 'link-icon ride-row ride-cols' + (r.id === selectedId ? ' selected' : '');
@@ -1380,8 +1432,20 @@
   // "28.33 km · ~46 min (22–71)"
   function fmtTrip(t) {
     if (!t) return 'n/a';
-    const range = t.low_min != null ? ` <small>(${t.low_min}–${t.high_min})</small>` : '';
-    return `${t.distance_km} km · ~${t.duration_min} min${range}`;
+    const range = t.low_min != null ? ` <small>(${fmtMin(t.low_min)}–${fmtMin(t.high_min)})</small>` : '';
+    return `${fmtKm(t.distance_km)} km · ~${fmtMin(t.duration_min)}${range}`;
+  }
+  // 45 → "45 min", 390 → "6h 30m"; 437.5 → "438", 23.59 → "23.6". Always returns safe text.
+  function fmtMin(m) {
+    const n = Math.round(Number(m));
+    if (!isFinite(n)) return escHtml(m);
+    if (n < 60) return `${n} min`;
+    return `${Math.floor(n / 60)}h ${String(n % 60).padStart(2, '0')}m`;
+  }
+  function fmtKm(k) {
+    const n = Number(k);
+    if (!isFinite(n)) return escHtml(k);
+    return n >= 100 ? String(Math.round(n)) : String(Math.round(n * 10) / 10);
   }
 
   async function calcRide() {
@@ -1502,8 +1566,20 @@
       : `${l.link}`;
   }
 
-  function openUrl(url) { window.open(url, '_blank'); }
-  function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  // Only open real web links, and cut the new tab off from this one (stops "reverse tabnabbing",
+  // where the opened site quietly swaps this tab for a fake unlock page).
+  function openUrl(url) {
+    let u;
+    try { u = new URL(url); } catch { showToast('⚠️ Not a valid link'); return; }
+    if (u.protocol !== 'https:' && u.protocol !== 'http:') { showToast('⚠️ Only http(s) links can be opened'); return; }
+    const w = window.open(u.href, '_blank', 'noopener,noreferrer');
+    if (w) w.opener = null;
+  }
+  // Escapes quotes too, so values are safe inside HTML attributes, not just between tags
+  function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
 
   // ── Modal ──
   function openAdd() {
@@ -1773,15 +1849,17 @@
   }
   async function ctxDelete() {
     const l = curItems().find(x=>x.id===ctxId);
-    const label = mode === 'rides' ? l?.destination : l?.title;
+    const label = mode === 'rides' ? (l?.name || l?.destination) : l?.title;
     if (!l || !confirm(`Delete "${label}"?`)) { hideCtx(); return; }
+    // Remember which item and tab this was — the menu or tab could change while the request is in flight
+    const id = l.id, delMode = mode;
     hideCtx(); setSyncStatus('🔄 Deleting...');
     try {
-      await apiFetch('DELETE', mode, null, l.id);
-      if (mode === 'links') links = links.filter(x=>x.id!==ctxId);
-      else if (mode === 'prompts') prompts = prompts.filter(x=>x.id!==ctxId);
-      else rides = rides.filter(x=>x.id!==ctxId);
-      if (selectedId===ctxId) selectedId=null;
+      await apiFetch('DELETE', delMode, null, id);
+      if (delMode === 'links') links = links.filter(x=>x.id!==id);
+      else if (delMode === 'prompts') prompts = prompts.filter(x=>x.id!==id);
+      else rides = rides.filter(x=>x.id!==id);
+      if (selectedId===id) selectedId=null;
       renderSidebar(); renderCatBar(); renderContent();
       showToast('🗑️ Deleted!'); setSyncStatus('✅ Synced');
     } catch(err) { showToast('⚠️ '+err.message); setSyncStatus('❌ Failed'); }
