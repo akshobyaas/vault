@@ -117,11 +117,14 @@
       background: #c0c0c0; border-bottom: 2px solid #c0c0c0;
     }
     .mode-tab:focus-visible { outline: 1px dotted #000; outline-offset: -5px; }
+    /* Badges never split across lines ("v" / "1") */
     .version-badge {
-      font-size: 11px; background: #000080; color: #fff;
-      padding: 0 4px; border-radius: 2px; margin-left: 4px;
+      display: inline-block; white-space: nowrap;
+      font-size: 13px; line-height: 1.1; background: #000080; color: #fff;
+      padding: 0 4px; margin-left: 4px;
     }
-    .status-flag { font-size: 11px; padding: 0 4px; margin-left: 4px; }
+    .status-flag { display: inline-block; white-space: nowrap; font-size: 13px; line-height: 1.1; padding: 0 4px; margin-left: 4px; }
+    .link-icon.selected .version-badge { background: #fff; color: #000080; }
 
     /* ── Ride & Drive ── */
     /* Rides use Explorer's "Details" view: a header row + one line per ride.
@@ -211,10 +214,10 @@
 
     /* ── Sidebar ── */
     #sidebar {
-      width: 160px; flex-shrink: 0;
+      width: 180px; flex-shrink: 0;
       background: #c0c0c0;
       border-right: 2px solid #808080;
-      padding: 4px; overflow-y: auto;
+      padding: 4px; overflow-y: auto; overflow-x: hidden;
       transition: width 0.2s;
       height: 100%;
     }
@@ -223,6 +226,7 @@
       display: flex; align-items: center; gap: 5px;
       padding: 5px 6px; cursor: pointer; font-size: 16px; color: #000;
       white-space: nowrap; touch-action: manipulation;
+      overflow: hidden; text-overflow: ellipsis;
     }
     .cat-folder:hover, .cat-folder:active { background: #000080; color: #fff; }
     .cat-folder.active { background: #000080; color: #fff; }
@@ -962,7 +966,7 @@
     const emojiMap = curEmojiMap(), field = catField();
     const cats = ['All', ...curCats().filter(c => curItems().some(l => l[field] === c))];
     document.getElementById('cat-list').innerHTML = cats.map(c =>
-      `<div class="cat-folder${c===activeCat?' active':''}" role="button" tabindex="0" onclick="setCat('${c}')">
+      `<div class="cat-folder${c===activeCat?' active':''}" role="button" tabindex="0" title="${c}" onclick="setCat('${c}')">
         ${c==='All'?'🗂️':emojiMap[c]} ${c}
       </div>`
     ).join('');
