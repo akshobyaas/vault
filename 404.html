@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Page not found — My Vault</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png" />
+  <style>
+    :root { --ui-font: Consolas, 'Lucida Console', Menlo, 'Roboto Mono', 'Droid Sans Mono', 'Courier New', monospace; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { min-height: 100vh; min-height: 100dvh; background: #008080; font-family: var(--ui-font);
+      display: flex; align-items: center; justify-content: center; padding: 16px; }
+    .dialog { width: 100%; max-width: 420px; background: #c0c0c0;
+      border-top: 2px solid #fff; border-left: 2px solid #fff; border-right: 2px solid #000; border-bottom: 2px solid #000;
+      box-shadow: inset -1px -1px #808080; }
+    .titlebar { background: linear-gradient(to right, #000080, #1084d0); color: #fff; padding: 4px 6px; font-size: 16px;
+      display: flex; align-items: center; justify-content: space-between; }
+    .x { width: 22px; height: 20px; background: #c0c0c0; color: #000; font-size: 12px; text-decoration: none;
+      display: flex; align-items: center; justify-content: center;
+      border-top: 2px solid #fff; border-left: 2px solid #fff; border-right: 2px solid #808080; border-bottom: 2px solid #808080; }
+    .body { display: flex; gap: 16px; padding: 20px 18px 10px; align-items: flex-start; }
+    .body img { width: 32px; height: 32px; image-rendering: pixelated; flex-shrink: 0; }
+    h1 { font-size: 17px; margin-bottom: 8px; }
+    p { font-size: 15px; line-height: 1.4; }
+    code { font-family: inherit; overflow-wrap: anywhere; }
+    .btns { display: flex; justify-content: center; padding: 12px 18px 18px; }
+    .btn { font-family: inherit; font-size: 16px; color: #000; text-decoration: none; background: #c0c0c0; padding: 5px 22px;
+      border-top: 2px solid #fff; border-left: 2px solid #fff; border-right: 2px solid #808080; border-bottom: 2px solid #808080;
+      outline: 1px solid #000; }
+    .btn:focus-visible { outline: 1px dotted #000; outline-offset: -5px; }
+    .btn:active { border-top-color: #808080; border-left-color: #808080; border-right-color: #fff; border-bottom-color: #fff; }
+  </style>
+</head>
+<body>
+  <div class="dialog" role="alertdialog" aria-labelledby="t" aria-describedby="d">
+    <div class="titlebar"><span id="t">My Vault — Error</span><a class="x" href="/" aria-label="Close">✕</a></div>
+    <div class="body">
+      <img src="/icons/help.svg" alt="" />
+      <div>
+        <h1>Page not found</h1>
+        <p id="d">The address <code id="path"></code> doesn't exist in My Vault. It may have been mistyped.</p>
+      </div>
+    </div>
+    <div class="btns"><a class="btn" href="/" autofocus>OK — go to My Vault</a></div>
+  </div>
+  <script>document.getElementById('path').textContent = location.pathname;</script>
+</body>
+</html>

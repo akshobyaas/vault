@@ -26,6 +26,41 @@ function recordFailure(ip) { (failedAuth.get(ip) || failedAuth.set(ip, []).get(i
 const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
 const MAX_UPLOAD_BASE64 = 4 * 1024 * 1024; // ~3 MB image; Vercel's request limit is 4.5 MB
 
+function isWebUrl(v) {
+  try { const u = new URL(String(v)); return u.protocol === 'https:' || u.protocol === 'http:'; } catch { return false; }
+}
+
+// Never trust the browser: keep only plain text/number fields, cap their length, drop control characters.
+// Long fields (the prompt text itself, notes) get more room than titles and tags.
+const LONG_FIELDS = new Set(['prompt', 'notes', 'result']);
+function cleanItem(item) {
+  if (!item || typeof item !== 'object' || Array.isArray(item)) return null;
+  const out = {};
+  for (const [k, v] of Object.entries(item)) {
+    if (k === 'type') continue;
+    if (typeof v === 'number' && isFinite(v)) { out[k] = v; continue; }
+    if (typeof v !== 'string') continue;                       // objects, arrays, booleans → dropped
+    const max = LONG_FIELDS.has(k) ? 20000 : 2000;
+    out[k] = v.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '').slice(0, max);
+  }
+  if (out.id !== undefined && !/^[A-Za-z0-9_-]{1,40}$/.test(String(out.id))) return null;
+  return out;
+}
+
+// ── Change log: every add / edit / delete / upload is recorded ──
+// Always to the Vercel function log; also to a "Log" tab in your sheet if you create one
+// (columns: time, action, type, id, title, ip). If the tab doesn't exist, the sheet part is skipped.
+async function logChange(token, sheetId, entry) {
+  console.log('[vault change]', JSON.stringify(entry));
+  try {
+    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Log!A:F:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ values: [[entry.at, entry.action, entry.type, entry.id, entry.title, entry.ip]] }),
+    });
+  } catch { /* logging must never break a save */ }
+}
+
 async function safeFetch(url, opts = {}) {
   const res = await fetch(url, opts);
   const text = await res.text();
@@ -49,8 +84,8 @@ const RESOURCES = {
       id: r[0] || '', title: r[1] || '', url: r[2] || '',
       cat: r[3] || 'Other', note: r[4] || '', date: r[5] || '',
     }),
-    validate: (o) => o?.title && o?.url,
-    validationMsg: 'Title and URL required',
+    validate: (o) => o?.title && isWebUrl(o?.url),
+    validationMsg: 'Title and a valid http(s) URL required',
   },
   prompts: {
     sheetName: 'Prompts',
@@ -220,7 +255,7 @@ module.exports = async function handler(req, res) {
           body: multipartBody,
         }
       );
-      if (!uploadData.id) return res.status(500).json({ error: 'Drive upload failed', detail: uploadData });
+      if (!uploadData.id) { console.error('Drive upload failed', uploadData); return res.status(500).json({ error: 'Drive upload failed' }); }
 
       // Make the file publicly viewable via link (required so the <img> tag can load it)
       await safeFetch(`https://www.googleapis.com/drive/v3/files/${uploadData.id}/permissions`, {
@@ -230,6 +265,7 @@ module.exports = async function handler(req, res) {
       });
 
       const url = `https://lh3.googleusercontent.com/d/${uploadData.id}`;
+      await logChange(token, SHEET_ID, { at: new Date().toISOString(), action: 'upload', type: 'image', id: uploadData.id, title: safeName, ip: clientIp });
       return res.status(200).json({ success: true, url, fileId: uploadData.id });
     }
 
@@ -253,15 +289,15 @@ module.exports = async function handler(req, res) {
         `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${SHEET_NAME}!${cfg.range}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      if (data.error) return res.status(500).json({ error: 'Sheets read error', detail: data.error });
+      if (data.error) { console.error('Sheets read error', data.error); return res.status(500).json({ error: 'Sheets read error' }); }
       const items = (data.values || []).map(cfg.fromRow);
       return res.status(200).json({ success: true, [type]: items });
     }
 
     // ── POST — add new item ──
     if (req.method === 'POST') {
-      const item = req.body;
-      if (!cfg.validate(item)) return res.status(400).json({ error: cfg.validationMsg });
+      const item = cleanItem(req.body);
+      if (!item || !cfg.validate(item)) return res.status(400).json({ error: cfg.validationMsg });
       const row = cfg.toRow(item);
       const { data } = await safeFetch(
         `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${SHEET_NAME}!${cfg.colRange}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
@@ -271,14 +307,16 @@ module.exports = async function handler(req, res) {
           body: JSON.stringify({ values: [row] }),
         }
       );
-      if (data.error) return res.status(500).json({ error: 'Sheets write error', detail: data.error });
+      if (data.error) { console.error('Sheets write error', data.error); return res.status(500).json({ error: 'Sheets write error' }); }
+      await logChange(token, SHEET_ID, { at: new Date().toISOString(), action: 'add', type, id: String(row[0]), title: String(item.title || item.name || item.destination || '').slice(0, 100), ip: clientIp });
       return res.status(200).json({ success: true });
     }
 
     // ── PUT — update existing item (in place) ──
     if (req.method === 'PUT') {
-      const item = req.body;
-      if (!item?.id) return res.status(400).json({ error: 'ID required' });
+      const item = cleanItem(req.body);
+      if (!item?.id) return res.status(400).json({ error: 'Valid ID required' });
+      if (!cfg.validate(item)) return res.status(400).json({ error: cfg.validationMsg });
       const rowNum = await findRow(item.id);
       if (!rowNum) return res.status(404).json({ error: 'Item not found' });
       const row = cfg.toRow(item);
@@ -291,14 +329,15 @@ module.exports = async function handler(req, res) {
           body: JSON.stringify({ values: [row] }),
         }
       );
-      if (data.error) return res.status(500).json({ error: 'Sheets update error', detail: data.error });
+      if (data.error) { console.error('Sheets update error', data.error); return res.status(500).json({ error: 'Sheets update error' }); }
+      await logChange(token, SHEET_ID, { at: new Date().toISOString(), action: 'edit', type, id: String(item.id), title: String(item.title || item.name || item.destination || '').slice(0, 100), ip: clientIp });
       return res.status(200).json({ success: true });
     }
 
     // ── DELETE — remove item ──
     if (req.method === 'DELETE') {
       const { id } = req.query;
-      if (!id) return res.status(400).json({ error: 'ID required' });
+      if (!id || !/^[A-Za-z0-9_-]{1,40}$/.test(String(id))) return res.status(400).json({ error: 'Valid ID required' });
       const rowNum = await findRow(id);
       if (!rowNum) return res.status(404).json({ error: 'Item not found' });
       const { data: meta } = await safeFetch(
@@ -322,13 +361,15 @@ module.exports = async function handler(req, res) {
           }),
         }
       );
-      if (data.error) return res.status(500).json({ error: 'Sheets delete error', detail: data.error });
+      if (data.error) { console.error('Sheets delete error', data.error); return res.status(500).json({ error: 'Sheets delete error' }); }
+      await logChange(token, SHEET_ID, { at: new Date().toISOString(), action: 'delete', type, id: String(id), title: '', ip: clientIp });
       return res.status(200).json({ success: true });
     }
 
     return res.status(405).json({ error: 'Method not allowed' });
 
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    console.error('vault api error', err);
+    return res.status(500).json({ error: 'Server error — please try again' });
   }
 };

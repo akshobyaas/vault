@@ -3,7 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>My Vault</title>
+  <title>My Vault — Links</title>
+  <meta name="description" content="My Vault — a private Windows 95-style directory for links, AI prompts and bike rides." />
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="theme-color" content="#000080" />
+  <link rel="icon" href="/favicon.ico" sizes="48x48" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png" />
+  <link rel="icon" href="/favicon-16.png" sizes="16x16" type="image/png" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <link rel="manifest" href="/site.webmanifest" />
   <style>
     /* One monospace stack, chosen per platform: Consolas (Windows), Menlo (Mac), Roboto Mono / Droid Sans Mono (Android) */
     :root { --ui-font: Consolas, 'Lucida Console', Menlo, 'Roboto Mono', 'Droid Sans Mono', 'Courier New', monospace; }
@@ -414,11 +423,22 @@
     #start-btn img.px { margin-right: 4px; }
     .sm-item:hover, .sm-item:focus-visible { background: #000080; color: #fff; outline: none; }
     .sm-sep { height: 0; margin: 3px 2px; border-top: 1px solid #808080; border-bottom: 1px solid #fff; }
+    /* Taskbar button: pressed while the window is open, raised when minimised (like Win95) */
     .task-item {
+      font-family: var(--ui-font); color: #000; cursor: pointer;
       border-top: 2px solid #808080; border-left: 2px solid #808080;
       border-right: 2px solid #fff; border-bottom: 2px solid #fff;
       padding: 2px 10px; font-size: 15px;
+      background: #c0c0c0 repeating-conic-gradient(#c0c0c0 0 25%, #d8d8d8 0 50%) 0 0 / 2px 2px;
     }
+    .task-item[aria-pressed="false"] {
+      background: #c0c0c0;
+      border-top-color: #fff; border-left-color: #fff; border-right-color: #808080; border-bottom-color: #808080;
+    }
+    .task-item:focus-visible { outline: 1px dotted #000; outline-offset: -4px; }
+    #main-window.minimised { display: none; }
+    #desktop.maximised { padding: 0; }
+    #desktop.maximised #main-window { max-width: none; }
     #clock {
       margin-left: auto;
       border-top: 2px solid #808080; border-left: 2px solid #808080;
@@ -456,6 +476,10 @@
       margin: auto 0; /* centred when it fits, scrollable from the top when it doesn't */
     }
     .dialog-body { padding: 14px 16px; }
+    /* Inline field errors */
+    .field-err { color: #800000; font-size: 14px; margin-top: 3px; display: flex; gap: 4px; align-items: center; }
+    .field-err::before { content: '⚠'; }
+    input[aria-invalid="true"], textarea[aria-invalid="true"] { outline: 2px solid #800000; outline-offset: 1px; }
     .field-row { margin-bottom: 10px; }
     .field-lbl { font-size: 16px; color: #000; margin-bottom: 3px; display: block; }
     .field-row input, .field-row select, .field-row textarea { width: 100%; font-size: 17px; padding: 5px 6px; }
@@ -630,9 +654,9 @@
         <span class="hidden" id="title-short">My Vault</span>
       </div>
       <div class="winbtns">
-        <div class="winbtn" aria-hidden="true">_</div>
-        <div class="winbtn" aria-hidden="true">□</div>
-        <div class="winbtn" aria-hidden="true">✕</div>
+        <div class="winbtn" role="button" tabindex="0" title="Minimise" aria-label="Minimise" onclick="minimiseWindow()">_</div>
+        <div class="winbtn" role="button" tabindex="0" title="Maximise" aria-label="Maximise" id="max-btn" onclick="toggleMaximise()">□</div>
+        <div class="winbtn" role="button" tabindex="0" title="Close (locks the vault)" aria-label="Close and lock" onclick="lockNow()">✕</div>
       </div>
     </div>
 
@@ -703,7 +727,7 @@
 <!-- Taskbar -->
 <div id="taskbar">
   <button id="start-btn" aria-haspopup="menu" aria-expanded="false" onclick="toggleStart(event)"><img class="px" src="icons/start-16.svg" alt="">Start</button>
-  <div class="task-item"><img class="px" src="icons/folder-16.svg" alt=""> My Vault</div>
+  <button class="task-item" id="task-item" aria-pressed="true" title="Show or minimise My Vault" onclick="toggleMinimise()"><img class="px" src="icons/folder-16.svg" alt=""> My Vault</button>
   <div id="clock"></div>
 </div>
 
@@ -1032,6 +1056,7 @@
       tab.classList.toggle('active', m === k);
       tab.setAttribute('aria-selected', m === k ? 'true' : 'false');
     });
+    document.title = 'My Vault — ' + (m === 'links' ? 'Links' : m === 'prompts' ? 'Prompts' : 'Rides');
     document.getElementById('sidebar-title').textContent =
       m === 'rides' ? 'Saved rides' : 'Categories';
     document.getElementById('search-input').value = '';
@@ -1154,7 +1179,7 @@
         const catIcon = iconMap[l[field]] || 'other';
         const fav = mode === 'links' ? faviconUrl(l.url) : null;
         const iconHtml = hasImg
-          ? `<img src="${escHtml(l.result)}" class="result-thumb" alt="" />`
+          ? `<img src="${escHtml(l.result)}" class="result-thumb" alt="${escHtml('Result: ' + l.title)}" loading="lazy" />`
           : fav
           ? `<img src="${escHtml(fav)}" data-site="${escHtml(l.url)}" class="favicon" alt="" loading="lazy" referrerpolicy="no-referrer"
                onerror="faviconFallback(this, '${catIcon}')" /><span class="fav-badge">${pxIcon(catIcon)}</span>`
@@ -1398,7 +1423,7 @@
     setTimeout(() => document.getElementById('r-link').focus(), 100);
   }
 
-  function closeRideModal() { document.getElementById('ride-modal').classList.remove('open'); }
+  function closeRideModal() { clearAllFieldErrors(); document.getElementById('ride-modal').classList.remove('open'); }
 
   // Edit a saved ride: name and tags save directly; a changed link needs Calculate first.
   function openRideEdit(id) {
@@ -1450,7 +1475,8 @@
 
   async function calcRide() {
     const link = document.getElementById('r-link').value.trim();
-    if (!link) { showToast('⚠️ Paste a link or place name first!'); return; }
+    clearAllFieldErrors();
+    if (!link) { fieldError('r-link', 'Paste a Google Maps link or type a place name').focus(); return; }
     const btn = document.getElementById('r-calc-btn');
     const resultBox = document.getElementById('r-result');
     btn.disabled = true; btn.textContent = '⏳ Calculating...';
@@ -1607,7 +1633,7 @@
     setTimeout(() => document.getElementById('m-title').focus(), 100);
   }
 
-  function closeModal() { document.getElementById('link-modal').classList.remove('open'); }
+  function closeModal() { clearAllFieldErrors(); document.getElementById('link-modal').classList.remove('open'); }
 
   function isImageUrl(s) {
     if (!s) return false;
@@ -1712,7 +1738,7 @@
     setTimeout(() => document.getElementById('p-title').focus(), 100);
   }
 
-  function closePromptModal() { document.getElementById('prompt-modal').classList.remove('open'); }
+  function closePromptModal() { clearAllFieldErrors(); document.getElementById('prompt-modal').classList.remove('open'); }
 
   async function savePrompt(asNewVersion) {
     const title = document.getElementById('p-title').value.trim();
@@ -1723,7 +1749,11 @@
     const promptText = document.getElementById('p-prompt').value.trim();
     const notes = document.getElementById('p-notes').value.trim();
     const result = document.getElementById('p-result').value.trim();
-    if (!title || !promptText) { showToast('⚠️ Title and Prompt required!'); return; }
+    clearAllFieldErrors();
+    if (!promptText) fieldError('p-prompt', 'Paste or write the prompt text');
+    if (!title) fieldError('p-title', 'Give this prompt a title');
+    const firstBad = document.querySelector('#prompt-modal [aria-invalid="true"]');
+    if (firstBad) { firstBad.focus(); return; }
 
     const btn = asNewVersion ? document.getElementById('save-version-btn') : document.getElementById('save-prompt-btn');
     const origLabel = btn.textContent;
@@ -1775,8 +1805,13 @@
     let url = document.getElementById('m-url').value.trim();
     const cat = document.getElementById('m-cat').value;
     const note = document.getElementById('m-note').value.trim();
-    if (!title || !url) { showToast('⚠️ Title and URL required!'); return; }
-    if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+    clearAllFieldErrors();
+    if (!/^https?:\/\//i.test(url) && url) url = 'https://' + url;
+    let bad = null;
+    if (!url) bad = fieldError('m-url', 'Enter the web address, e.g. github.com');
+    else { try { const u = new URL(url); if (!u.hostname.includes('.')) throw 0; } catch { bad = fieldError('m-url', "That doesn't look like a web address"); } }
+    if (!title) bad = fieldError('m-title', 'Give this link a title') || bad;
+    if (bad) { (document.querySelector('#link-modal [aria-invalid="true"]') || bad).focus(); return; }
     const saveBtn = document.getElementById('save-btn');
     saveBtn.disabled = true; saveBtn.textContent = '⏳...';
     setSyncStatus('🔄 Saving...');
@@ -1870,6 +1905,25 @@
 
   function setLoading(v) { document.getElementById('loading').classList.toggle('show', v); }
   function setSyncStatus(msg) { document.getElementById('status-sync').textContent = msg; }
+  // ── Inline field errors: message right under the field, cleared as soon as you type ──
+  function fieldError(id, msg) {
+    const el = document.getElementById(id);
+    clearFieldError(id);
+    el.setAttribute('aria-invalid', 'true');
+    const err = document.createElement('div');
+    err.className = 'field-err'; err.id = id + '-err'; err.setAttribute('role', 'alert'); err.textContent = msg;
+    el.setAttribute('aria-describedby', err.id);
+    el.insertAdjacentElement('afterend', err);
+    el.addEventListener('input', () => clearFieldError(id), { once: true });
+    return el;
+  }
+  function clearFieldError(id) {
+    const el = document.getElementById(id);
+    el?.removeAttribute('aria-invalid'); el?.removeAttribute('aria-describedby');
+    document.getElementById(id + '-err')?.remove();
+  }
+  function clearAllFieldErrors() { document.querySelectorAll('.field-err').forEach(e => clearFieldError(e.id.replace(/-err$/, ''))); }
+
   function showToast(msg) {
     const t = document.getElementById('toast');
     t.textContent = msg; t.classList.add('show');
@@ -1894,9 +1948,31 @@
   }
   function startDo(fn) { closeStart(); fn(); }
 
+  // ── Window buttons ──
+  function minimiseWindow() {
+    document.getElementById('main-window').classList.add('minimised');
+    document.getElementById('task-item').setAttribute('aria-pressed', 'false');
+  }
+  function toggleMinimise() {
+    const win = document.getElementById('main-window');
+    const nowMin = !win.classList.contains('minimised');
+    win.classList.toggle('minimised', nowMin);
+    document.getElementById('task-item').setAttribute('aria-pressed', nowMin ? 'false' : 'true');
+  }
+  function toggleMaximise() {
+    const max = document.getElementById('desktop').classList.toggle('maximised');
+    const btn = document.getElementById('max-btn');
+    btn.textContent = max ? '❐' : '□';
+    btn.title = btn.ariaLabel = max ? 'Restore' : 'Maximise';
+    try { localStorage.setItem('vaultMax', max ? '1' : ''); } catch {}
+  }
+  try { if (localStorage.getItem('vaultMax')) toggleMaximise(); } catch {}
+
   // Lock: forget the key on this device and clear the data from the screen
   function lockNow() {
     links = []; prompts = []; rides = []; selectedId = null;
+    document.getElementById('main-window').classList.remove('minimised');
+    document.getElementById('task-item').setAttribute('aria-pressed', 'true');
     renderSidebar(); renderCatBar(); renderContent();
     setSyncStatus('🔒 Locked');
     lockVault();
