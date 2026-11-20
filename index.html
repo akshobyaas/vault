@@ -91,7 +91,7 @@
     }
     .toolbar .sep { width: 1px; height: 24px; background: #808080; border-right: 1px solid #fff; margin: 0 2px; }
     #search-input { flex: 1; min-width: 120px; max-width: 300px;
-      padding-left: 26px; background: #fff url(icons/search.svg) no-repeat 5px 50% / 16px 16px; image-rendering: pixelated; }
+      padding-left: 26px; background: #fff url(icons/search-16.svg) no-repeat 5px 50% / 16px 16px; image-rendering: pixelated; }
 
     /* ── Address Bar ── */
     .addrbar {
@@ -225,15 +225,30 @@
       height: 100%;
     }
     .sidebar-title { font-size: 13px; color: #000080; padding: 2px 4px; margin-bottom: 2px; border-bottom: 1px solid #808080; }
+    /* Sidebar as a Win95 Explorer folder tree: dotted branch lines, only the label highlights */
     .cat-folder {
-      display: flex; align-items: center; gap: 5px;
-      padding: 5px 6px; cursor: pointer; font-size: 16px; color: #000;
-      white-space: nowrap; touch-action: manipulation;
-      overflow: hidden;
+      display: flex; align-items: flex-start; gap: 5px;
+      padding: 4px 4px; cursor: pointer; font-size: 16px; color: #000;
+      touch-action: manipulation;
     }
-    .cat-folder .cat-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-    .cat-folder:hover, .cat-folder:active { background: #000080; color: #fff; }
-    .cat-folder.active { background: #000080; color: #fff; }
+    .cat-folder img.px { flex-shrink: 0; margin-top: 1px; vertical-align: 0; }
+    .cat-folder .cat-name { min-width: 0; padding: 0 2px; line-height: 1.2; font-size: 15px; overflow-wrap: anywhere; border: 1px dotted transparent; }
+    .cat-folder .cat-count { color: #555; font-size: 14px; white-space: nowrap; }
+    .cat-folder:hover .cat-name { text-decoration: underline; }
+    .cat-folder.active .cat-name { background: #000080; color: #fff; }
+    .cat-folder.active .cat-count { color: #c8d0ff; }
+    .cat-folder:focus-visible { outline: none; }
+    .cat-folder:focus-visible .cat-name { border-color: #000; }
+    .cat-folder.active:focus-visible .cat-name { border-color: #ffff80; }
+    .tree-children { margin-left: 7px; }
+    .tree-item { position: relative; padding-left: 13px; }
+    .tree-item::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; border-left: 1px dotted #000; }
+    .tree-item:last-child::before { bottom: auto; height: 13px; }
+    .tree-item::after { content: ''; position: absolute; left: 0; top: 13px; width: 10px; border-top: 1px dotted #000; }
+    .cat-chip img.px { margin-right: 3px; }
+    .cat-chip small { color: #555; }
+    .cat-chip.active small { color: #c8d0ff; }
+    .link-icon .emoji-box > img.px32 { width: 32px; height: 32px; }
 
     /* ── Mobile bottom category bar ── */
     #cat-bar {
@@ -269,7 +284,7 @@
     }
     /* Win95 keyboard focus: dotted rectangle inside the control */
     .btn:focus-visible, #start-btn:focus-visible { outline: 1px dotted #000; outline-offset: -5px; }
-    .cat-folder:focus-visible, .cat-chip:focus-visible, .ctx-item:focus-visible,
+    .cat-chip:focus-visible, .ctx-item:focus-visible,
     .menubar span:focus-visible { outline: 1px dotted #fff; outline-offset: -3px; background: #000080; color: #fff; }
     input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 1px dotted #000080; outline-offset: 1px; }
     .winbtn:focus-visible { outline: 1px dotted #000; outline-offset: -4px; }
@@ -485,7 +500,7 @@
        ════════════════════════════════ */
     @media (max-width: 1280px) {
       #main-window { max-width: 100%; }
-      #sidebar { width: 172px; }
+      #sidebar { width: 190px; }
       #content { grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); }
     }
 
@@ -577,7 +592,7 @@
     <!-- Title Bar -->
     <div class="titlebar">
       <div class="titlebar-left">
-        <span>🗂️</span>
+        <span><img class="px" src="icons/folder-16.svg" alt=""></span>
         <span class="title-text">My Vault — Personal Link Directory</span>
         <span class="hidden" id="title-short">My Vault</span>
       </div>
@@ -597,15 +612,15 @@
 
     <!-- Mode Tabs -->
     <div id="mode-tabs" role="tablist">
-      <div class="mode-tab active" id="tab-links" role="tab" tabindex="0" aria-selected="true" onclick="setMode('links')"><img class="px" src="icons/link.svg" alt=""> Links</div>
-      <div class="mode-tab" id="tab-prompts" role="tab" tabindex="0" aria-selected="false" onclick="setMode('prompts')"><img class="px" src="icons/prompt.svg" alt=""> Prompts</div>
-      <div class="mode-tab" id="tab-rides" role="tab" tabindex="0" aria-selected="false" onclick="setMode('rides')"><img class="px" src="icons/moto.svg" alt=""> Rides</div>
+      <div class="mode-tab active" id="tab-links" role="tab" tabindex="0" aria-selected="true" onclick="setMode('links')"><img class="px" src="icons/link-16.svg" alt=""> Links</div>
+      <div class="mode-tab" id="tab-prompts" role="tab" tabindex="0" aria-selected="false" onclick="setMode('prompts')"><img class="px" src="icons/prompt-16.svg" alt=""> Prompts</div>
+      <div class="mode-tab" id="tab-rides" role="tab" tabindex="0" aria-selected="false" onclick="setMode('rides')"><img class="px" src="icons/moto-16.svg" alt=""> Rides</div>
     </div>
 
     <!-- Toolbar -->
     <div class="toolbar">
-      <button class="btn" id="toolbar-new-btn" onclick="openAdd()"><img class="px" src="icons/plus.svg" alt=""> New</button>
-      <button class="btn" onclick="refreshAll()" title="Refresh from Google Sheets" aria-label="Refresh"><img class="px" src="icons/refresh.svg" alt=""></button>
+      <button class="btn" id="toolbar-new-btn" onclick="openAdd()"><img class="px" src="icons/plus-16.svg" alt=""> New</button>
+      <button class="btn" onclick="refreshAll()" title="Refresh from Google Sheets" aria-label="Refresh"><img class="px" src="icons/refresh-16.svg" alt=""></button>
       <div class="sep"></div>
       <input id="search-input" type="text" placeholder="Search..." aria-label="Search" oninput="renderContent()" />
     </div>
@@ -654,8 +669,8 @@
 
 <!-- Taskbar -->
 <div id="taskbar">
-  <button id="start-btn" aria-haspopup="menu" aria-expanded="false" onclick="toggleStart(event)"><img class="px" src="icons/start.svg" alt="">Start</button>
-  <div class="task-item">🗂️ My Vault</div>
+  <button id="start-btn" aria-haspopup="menu" aria-expanded="false" onclick="toggleStart(event)"><img class="px" src="icons/start-16.svg" alt="">Start</button>
+  <div class="task-item"><img class="px" src="icons/folder-16.svg" alt=""> My Vault</div>
   <div id="clock"></div>
 </div>
 
@@ -678,7 +693,7 @@
 <div class="modal-overlay" id="link-modal">
   <div class="dialog">
     <div class="titlebar">
-      <div class="titlebar-left"><span><img class="px" src="icons/new.svg" alt=""></span><span id="modal-title">Add New Link</span></div>
+      <div class="titlebar-left"><span><img class="px" src="icons/new-16.svg" alt=""></span><span id="modal-title">Add New Link</span></div>
       <div class="winbtns"><div class="winbtn" role="button" tabindex="0" aria-label="Close" onclick="closeModal()">✕</div></div>
     </div>
     <div class="dialog-body">
@@ -722,7 +737,7 @@
 <div class="modal-overlay" id="ride-modal">
   <div class="dialog">
     <div class="titlebar">
-      <div class="titlebar-left"><span><img class="px" src="icons/moto.svg" alt=""></span><span id="ride-modal-title">Ride &amp; Drive</span></div>
+      <div class="titlebar-left"><span><img class="px" src="icons/moto-16.svg" alt=""></span><span id="ride-modal-title">Ride &amp; Drive</span></div>
       <div class="winbtns"><div class="winbtn" role="button" tabindex="0" aria-label="Close" onclick="closeRideModal()">✕</div></div>
     </div>
     <div class="dialog-body">
@@ -755,7 +770,7 @@
 <div class="modal-overlay" id="prompt-modal">
   <div class="dialog">
     <div class="titlebar">
-      <div class="titlebar-left"><span><img class="px" src="icons/prompt.svg" alt=""></span><span id="prompt-modal-title">Add New Prompt</span></div>
+      <div class="titlebar-left"><span><img class="px" src="icons/prompt-16.svg" alt=""></span><span id="prompt-modal-title">Add New Prompt</span></div>
       <div class="winbtns"><div class="winbtn" role="button" tabindex="0" aria-label="Close" onclick="closePromptModal()">✕</div></div>
     </div>
     <div class="dialog-body">
@@ -830,7 +845,7 @@
 <div class="modal-overlay" id="unlock-modal">
   <div class="dialog">
     <div class="titlebar">
-      <div class="titlebar-left"><span><img class="px" src="icons/lock.svg" alt=""></span> Unlock My Vault</div>
+      <div class="titlebar-left"><span><img class="px" src="icons/lock-16.svg" alt=""></span> Unlock My Vault</div>
     </div>
     <div class="dialog-body">
       <div class="field-row">
@@ -849,19 +864,19 @@
 <div class="modal-overlay" id="help-modal">
   <div class="dialog">
     <div class="titlebar">
-      <div class="titlebar-left"><span><img class="px" src="icons/help.svg" alt=""></span> Help — My Vault</div>
+      <div class="titlebar-left"><span><img class="px" src="icons/help-16.svg" alt=""></span> Help — My Vault</div>
       <div class="winbtns"><div class="winbtn" role="button" tabindex="0" aria-label="Close" onclick="closeHelp()">✕</div></div>
     </div>
     <div class="dialog-body help-body">
       <b>MY VAULT</b><br><br>
-      <img class="px" src="icons/link.svg" alt=""> <b>Links</b> / <img class="px" src="icons/prompt.svg" alt=""> <b>Prompts</b> / <img class="px" src="icons/moto.svg" alt=""> <b>Rides</b> — Switch modes at the top<br>
-      <img class="px" src="icons/plus.svg" alt=""> <b>New</b> — Add a link, prompt, or calculate a ride (depends on mode)<br>
-      <img class="px" src="icons/search.svg" alt=""> <b>Search</b> — Real-time search across titles, tags &amp; text<br>
+      <img class="px" src="icons/link-16.svg" alt=""> <b>Links</b> / <img class="px" src="icons/prompt-16.svg" alt=""> <b>Prompts</b> / <img class="px" src="icons/moto-16.svg" alt=""> <b>Rides</b> — Switch modes at the top<br>
+      <img class="px" src="icons/plus-16.svg" alt=""> <b>New</b> — Add a link, prompt, or calculate a ride (depends on mode)<br>
+      <img class="px" src="icons/search-16.svg" alt=""> <b>Search</b> — Real-time search across titles, tags &amp; text<br>
       📁 <b>Sidebar/bar</b> — Filter by category<br>
       🖱️ <b>Right-click / long-press</b> — Open/copy, edit, new version, delete<br>
       🖼️ <b>Result</b> — Paste an image URL or describe the output; image links show as a thumbnail<br>
       🔁 <b>Save as New Version</b> — Keeps the old prompt, bumps the version<br>
-      <img class="px" src="icons/refresh.svg" alt=""> <b>Refresh</b> — Reload from Google Sheets<br><br>
+      <img class="px" src="icons/refresh-16.svg" alt=""> <b>Refresh</b> — Reload from Google Sheets<br><br>
       <i>Data stored in your private Google Sheet (Vault + Prompts tabs).</i>
       <div class="dialog-btns"><button class="btn" onclick="closeHelp()">✔ OK</button></div>
     </div>
@@ -883,6 +898,17 @@
     'Writing':'✍️','Research':'🔬','Planning':'🗓️','Other':'📦'
   };
   const ALL_PROMPT_CATS = Object.keys(PROMPT_CAT_EMOJI);
+
+  // Pixel icons per category (emoji above stay only for the <select> dropdowns, which can't show images)
+  const CAT_ICON = {
+    'GitHub':'code','AI Tools':'ai','Social':'social','Places':'places','Buy':'buy','Bikes':'moto',
+    'Clothing':'clothing','Dev Tools':'devtools','Read / Watch':'read','General':'link','Other':'other'
+  };
+  const PROMPT_CAT_ICON = {
+    'Image Generation':'palette','Image Editing':'brush','Coding':'devtools','Writing':'prompt',
+    'Research':'flask','Planning':'calendar','Other':'other'
+  };
+  const curIconMap = () => mode === 'links' ? CAT_ICON : mode === 'prompts' ? PROMPT_CAT_ICON : {};
 
   // Ride tags are optional, multi-select (a ride can be both "Scenic" and "Short")
   const RIDE_TAG_PRESETS = [
@@ -995,15 +1021,15 @@
     } catch { return null; }
   }
   // Called when an icon fails: try DuckDuckGo's icon service once, then fall back to the category emoji.
-  function faviconFallback(img, emoji) {
+  function faviconFallback(img, icon) {
     if (!img.dataset.tried) {
       img.dataset.tried = '1';
       try { img.src = `https://icons.duckduckgo.com/ip3/${new URL(img.dataset.site).hostname}.ico`; return; } catch {}
     }
-    img.parentNode.textContent = emoji;
+    img.parentNode.innerHTML = `<img class="px px32" src="icons/${icon}.svg" alt="">`;
   }
 
-  const pxIcon = n => `<img class="px" src="icons/${n}.svg" alt="">`;
+  const pxIcon = n => `<img class="px" src="icons/${n}-16.svg" alt="">`;  // 16px set; 32px set is icons/<name>.svg
 
   function emptyStateHtml(kind) {
     const touch = window.matchMedia('(hover: none)').matches;
@@ -1021,18 +1047,20 @@
 
   // ── Sidebar (desktop/tablet) ──
   function renderSidebar() {
-    if (mode === 'rides') {
-      document.getElementById('cat-list').innerHTML =
-        `<div class="cat-folder active">🗂️ All Rides</div>`;
-      return;
-    }
-    const emojiMap = curEmojiMap(), field = catField();
-    const cats = ['All', ...curCats().filter(c => curItems().some(l => l[field] === c))];
-    document.getElementById('cat-list').innerHTML = cats.map(c =>
-      `<div class="cat-folder${c===activeCat?' active':''}" role="button" tabindex="0" title="${c}" onclick="setCat('${c}')">
-        <span>${c==='All'?'🗂️':emojiMap[c]}</span><span class="cat-name">${c}</span>
-      </div>`
-    ).join('');
+    const list = document.getElementById('cat-list');
+    const rootLabel = mode === 'links' ? 'Links' : mode === 'prompts' ? 'Prompts' : 'Rides';
+    const items = curItems();
+    const root = (active, icon) =>
+      `<div class="cat-folder tree-root${active ? ' active' : ''}" role="button" tabindex="0" onclick="setCat('All')">
+        ${pxIcon(icon)}<span class="cat-name">${rootLabel} <span class="cat-count">(${items.length})</span></span></div>`;
+    if (mode === 'rides') { list.innerHTML = root(true, 'moto'); return; }
+    const icons = curIconMap(), field = catField();
+    const cats = curCats().filter(c => items.some(l => l[field] === c));
+    list.innerHTML = root(activeCat === 'All', 'folder') + '<div class="tree-children">' + cats.map(c => {
+      const n = items.filter(l => l[field] === c).length;
+      return `<div class="cat-folder tree-item${c===activeCat?' active':''}" role="button" tabindex="0" title="${c}" onclick="setCat('${c}')">
+        ${pxIcon(icons[c] || 'other')}<span class="cat-name">${c} <span class="cat-count">(${n})</span></span></div>`;
+    }).join('') + '</div>';
   }
 
   // ── Category chips (mobile) ──
@@ -1040,13 +1068,12 @@
     // Rides have no categories — hide the bar instead of showing a lone "All Rides" chip
     document.getElementById('cat-bar').classList.toggle('hidden', mode === 'rides');
     if (mode === 'rides') return;
-    const emojiMap = curEmojiMap(), field = catField();
-    const cats = ['All', ...curCats().filter(c => curItems().some(l => l[field] === c))];
-    document.getElementById('cat-chips').innerHTML = cats.map(c =>
-      `<span class="cat-chip${c===activeCat?' active':''}" role="button" tabindex="0" onclick="setCat('${c}')">
-        ${c==='All'?'🗂️':emojiMap[c]} ${c}
-      </span>`
-    ).join('');
+    const icons = curIconMap(), field = catField(), items = curItems();
+    const cats = ['All', ...curCats().filter(c => items.some(l => l[field] === c))];
+    document.getElementById('cat-chips').innerHTML = cats.map(c => {
+      const n = c === 'All' ? items.length : items.filter(l => l[field] === c).length;
+      return `<span class="cat-chip${c===activeCat?' active':''}" role="button" tabindex="0" onclick="setCat('${c}')">${pxIcon(c==='All' ? 'folder' : (icons[c] || 'other'))}${c} <small>(${n})</small></span>`;
+    }).join('');
   }
 
   function setCat(c) {
@@ -1058,7 +1085,7 @@
   function renderContent() {
     if (mode === 'rides') return renderRideList();
     const q = document.getElementById('search-input').value.toLowerCase().trim();
-    const field = catField(), emojiMap = curEmojiMap();
+    const field = catField(), iconMap = curIconMap();
     const filtered = curItems().filter(l => {
       const matchCat = activeCat === 'All' || l[field] === activeCat;
       const matchQ = !q ||
@@ -1090,14 +1117,14 @@
             (l.status && l.status !== 'active' ? `<span class="status-flag ${l.status}">${l.status}</span>` : '')
           : '';
         const hasImg = mode === 'prompts' && isImageUrl(l.result);
-        const catEmoji = emojiMap[l[field]] || '🔖';
+        const catIcon = iconMap[l[field]] || 'other';
         const fav = mode === 'links' ? faviconUrl(l.url) : null;
         const iconHtml = hasImg
           ? `<img src="${escHtml(l.result)}" class="result-thumb" alt="" />`
           : fav
           ? `<img src="${escHtml(fav)}" data-site="${escHtml(l.url)}" class="favicon" alt="" loading="lazy" referrerpolicy="no-referrer"
-               onerror="faviconFallback(this, '${catEmoji}')" /><span class="fav-badge">${catEmoji}</span>`
-          : catEmoji;
+               onerror="faviconFallback(this, '${catIcon}')" /><span class="fav-badge">${pxIcon(catIcon)}</span>`
+          : `<img class="px px32" src="icons/${catIcon}.svg" alt="">`;
         div.innerHTML = `<div class="emoji-box">${iconHtml}</div>
           <div class="icon-name">${escHtml(l.title)}${badges}</div>`;
 
@@ -1251,7 +1278,7 @@
         const sub = r.name && r.destination && !isUrl(r.destination) ? r.destination : '';
         const subLine = [tags.join(', '), sub].filter(Boolean).join(' — ');
         div.title = r.destination || r.link;
-        div.innerHTML = `<div class="ride-icon">🗺️</div>
+        div.innerHTML = `<div class="ride-icon">${pxIcon('moto')}</div>
           <div class="ride-info">
             <div class="ride-dest">${escHtml(title)}</div>
             ${subLine ? `<div class="ride-tags">${escHtml(subLine)}</div>` : ''}
