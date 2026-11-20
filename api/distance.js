@@ -3,7 +3,11 @@
 // then returns car + motorcycle distance/duration from NIE North Campus.
 // Routing: Valhalla (FOSSGIS public server) for both car and motorcycle, with the OSRM
 // demo server as a car-only backup. Geocoding: Nominatim. No API keys required.
-// Note: none of these services know about live traffic, so times are free-flow estimates.
+// None of these services know about live traffic, and they err in opposite directions:
+// OSRM assumes empty roads (too fast), Valhalla uses cautious Indian speed defaults (too slow).
+// We call both and report the midpoint as the estimate, with the two as a low–high range.
+// Calibrated against Google Maps on one Mysuru city ride (OSRM 22, Valhalla 71, Google 44 min);
+// adjust the fallback factors below if more comparisons show a consistent bias.
 
 // NIE North Campus — precise coordinates (12°22'22.4"N 76°35'06.1"E), hardcoded to avoid
 // a geocoding round-trip on every request.
@@ -146,15 +150,54 @@ async function routeOSRMDriving(origin, dest) {
   return { distance_km: +(r.distance / 1000).toFixed(2), duration_min: Math.round(r.duration / 60) };
 }
 
-async function routeCar(origin, dest) {
-  try { return await routeValhalla('auto', origin, dest); }
-  catch (e) {
-    try { return await routeOSRMDriving(origin, dest); }   // backup if Valhalla is down
-    catch { throw e; }
-  }
-}
+// When only one service answers, scale it toward the midpoint (from the calibration ride).
+const FAST_ONLY_FACTOR = 2.0;   // OSRM time × this ≈ real time
+const SLOW_ONLY_FACTOR = 0.62;  // Valhalla time × this ≈ real time
 
-const routeMotorcycle = (origin, dest) => routeValhalla('motorcycle', origin, dest);
+async function estimateTrip(origin, dest) {
+  const [fast, slow, moto] = await Promise.allSettled([
+    routeOSRMDriving(origin, dest),
+    routeValhalla('auto', origin, dest),
+    routeValhalla('motorcycle', origin, dest),
+  ]);
+  const F = fast.status === 'fulfilled' ? fast.value : null;
+  const S = slow.status === 'fulfilled' ? slow.value : null;
+  const M = moto.status === 'fulfilled' ? moto.value : null;
+
+  let car = null, carError = null;
+  if (F && S) {
+    car = {
+      distance_km: S.distance_km,  // Valhalla's route length matched Google's closely
+      duration_min: Math.round((F.duration_min + S.duration_min) / 2),
+      low_min: Math.min(F.duration_min, S.duration_min),
+      high_min: Math.max(F.duration_min, S.duration_min),
+    };
+  } else if (S) {
+    car = { distance_km: S.distance_km, duration_min: Math.round(S.duration_min * SLOW_ONLY_FACTOR) };
+  } else if (F) {
+    car = { distance_km: F.distance_km, duration_min: Math.round(F.duration_min * FAST_ONLY_FACTOR) };
+  } else {
+    carError = (slow.reason || fast.reason)?.message || 'Car routing failed';
+  }
+
+  // Motorcycle: same correction as the car, via Valhalla's motorcycle-vs-car time ratio.
+  let bike = null, bikeError = null;
+  if (M) {
+    const ratio = S && S.duration_min > 0 ? M.duration_min / S.duration_min : 1;
+    if (car) {
+      bike = { distance_km: M.distance_km, duration_min: Math.round(car.duration_min * ratio) };
+      if (car.low_min != null) {
+        bike.low_min = Math.round(car.low_min * ratio);
+        bike.high_min = Math.round(car.high_min * ratio);
+      }
+    } else {
+      bike = { distance_km: M.distance_km, duration_min: Math.round(M.duration_min * SLOW_ONLY_FACTOR) };
+    }
+  } else {
+    bikeError = moto.reason?.message || 'Motorcycle routing failed';
+  }
+  return { car, bike, carError, bikeError };
+}
 
 // Best-effort rate limit — resets on cold start since it's in-memory, but still helps
 // during sustained abuse within a warm instance. The API key above is the real gate;
@@ -199,23 +242,14 @@ module.exports = async function handler(req, res) {
   try {
     const [origin, dest] = await Promise.all([getOrigin(), resolveDestination(link)]);
 
-    const [car, bike] = await Promise.allSettled([
-      routeCar(origin, dest),
-      routeMotorcycle(origin, dest),
-    ]);
-
-    if (car.status === 'rejected' && bike.status === 'rejected') {
-      throw new Error('Both routing profiles failed: ' + car.reason.message);
-    }
+    const { car, bike, carError, bikeError } = await estimateTrip(origin, dest);
+    if (!car && !bike) throw new Error('Routing failed: ' + carError);
 
     return res.status(200).json({
       success: true,
       destination: dest.resolvedName || link,
       origin: { lat: origin.lat, lng: origin.lng },
-      car: car.status === 'fulfilled' ? car.value : null,
-      bike: bike.status === 'fulfilled' ? bike.value : null,
-      carError: car.status === 'rejected' ? car.reason.message : null,
-      bikeError: bike.status === 'rejected' ? bike.reason.message : null,
+      car, bike, carError, bikeError,
     });
   } catch (err) {
     return res.status(500).json({ error: err.message });

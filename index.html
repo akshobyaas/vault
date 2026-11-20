@@ -1187,7 +1187,7 @@
       head.innerHTML = '<span></span><span>Destination</span><span>🚗 Car</span><span>🏍️ Motorcycle</span>';
       content.appendChild(head);
       const num = (km, min, lbl, cls) => `<div class="ride-num ${cls}"><span class="ride-num-lbl">${lbl} </span>` +
-        (km ? `${escHtml(km)} km <small>· ${escHtml(min)} min</small>` : '<span class="na">—</span>') + '</div>';
+        (km ? `${escHtml(km)} km <small>· ~${escHtml(min)} min</small>` : '<span class="na">—</span>') + '</div>';
       filtered.forEach(r => {
         const div = document.createElement('div');
         div.className = 'link-icon ride-row ride-cols' + (r.id === selectedId ? ' selected' : '');
@@ -1267,6 +1267,13 @@
 
   function closeRideModal() { document.getElementById('ride-modal').classList.remove('open'); }
 
+  // "28.33 km · ~46 min (22–71)"
+  function fmtTrip(t) {
+    if (!t) return 'n/a';
+    const range = t.low_min != null ? ` <small>(${t.low_min}–${t.high_min})</small>` : '';
+    return `${t.distance_km} km · ~${t.duration_min} min${range}`;
+  }
+
   async function calcRide() {
     const link = document.getElementById('r-link').value.trim();
     if (!link) { showToast('⚠️ Paste a link or place name first!'); return; }
@@ -1286,11 +1293,11 @@
       rideCalcResult = { link, destination: data.destination, car: data.car, bike: data.bike };
       resultBox.innerHTML = `
         <div class="rr-line"><b>${escHtml(data.destination)}</b></div>
-        <div class="rr-line"><span>🚗 Car</span><span>${data.car ? data.car.distance_km + ' km · ' + data.car.duration_min + ' min' : 'n/a'}</span></div>
+        <div class="rr-line"><span>🚗 Car</span><span>${fmtTrip(data.car)}</span></div>
         ${data.carError ? `<div class="rr-err">Car: ${escHtml(data.carError)}</div>` : ''}
-        <div class="rr-line"><span>🏍️ Motorcycle</span><span>${data.bike ? data.bike.distance_km + ' km · ' + data.bike.duration_min + ' min' : 'n/a'}</span></div>
+        <div class="rr-line"><span>🏍️ Motorcycle</span><span>${fmtTrip(data.bike)}</span></div>
         ${data.bikeError ? `<div class="rr-err">Motorcycle: ${escHtml(data.bikeError)}</div>` : ''}
-        <div class="rr-note">Times assume no traffic — allow extra in town.</div>
+        <div class="rr-note">Estimated times (no live traffic). The range is empty roads → slow traffic.</div>
       `;
       resultBox.classList.remove('hidden');
       document.getElementById('r-save-btn').classList.remove('hidden');
