@@ -168,6 +168,7 @@
       background: #fff; padding: 10px; margin-top: 8px; font-size: 15px;
     }
     .ride-result .rr-line { display: flex; justify-content: space-between; padding: 3px 0; }
+    .ride-result .rr-note { font-size: 13px; color: #555; padding-top: 4px; }
     .ride-result .rr-err { color: #a00; font-size: 13px; }
     /* Filter panel styled as a Win95 group box */
     .ride-filter-bar {
@@ -1183,7 +1184,7 @@
       empty.style.display = 'none';
       const head = document.createElement('div');
       head.className = 'ride-head ride-cols';
-      head.innerHTML = '<span></span><span>Destination</span><span>🚗 Car</span><span>🚲 Bike</span>';
+      head.innerHTML = '<span></span><span>Destination</span><span>🚗 Car</span><span>🏍️ Motorcycle</span>';
       content.appendChild(head);
       const num = (km, min, lbl, cls) => `<div class="ride-num ${cls}"><span class="ride-num-lbl">${lbl} </span>` +
         (km ? `${escHtml(km)} km <small>· ${escHtml(min)} min</small>` : '<span class="na">—</span>') + '</div>';
@@ -1204,7 +1205,7 @@
             ${subLine ? `<div class="ride-tags">${escHtml(subLine)}</div>` : ''}
           </div>
           ${num(r.car_km, r.car_min, '🚗', 'ride-num-car')}
-          ${num(r.bike_km, r.bike_min, '🚲', 'ride-num-bike')}`;
+          ${num(r.bike_km, r.bike_min, '🏍️', 'ride-num-bike')}`;
         div.addEventListener('focus', () => selectLink(r.id));
         div.addEventListener('keydown', e => {
           if (e.key === 'Enter') { e.preventDefault(); openUrl(r.link); }
@@ -1287,8 +1288,9 @@
         <div class="rr-line"><b>${escHtml(data.destination)}</b></div>
         <div class="rr-line"><span>🚗 Car</span><span>${data.car ? data.car.distance_km + ' km · ' + data.car.duration_min + ' min' : 'n/a'}</span></div>
         ${data.carError ? `<div class="rr-err">Car: ${escHtml(data.carError)}</div>` : ''}
-        <div class="rr-line"><span>🚲 Bike</span><span>${data.bike ? data.bike.distance_km + ' km · ' + data.bike.duration_min + ' min' : 'n/a'}</span></div>
-        ${data.bikeError ? `<div class="rr-err">Bike: ${escHtml(data.bikeError)}</div>` : ''}
+        <div class="rr-line"><span>🏍️ Motorcycle</span><span>${data.bike ? data.bike.distance_km + ' km · ' + data.bike.duration_min + ' min' : 'n/a'}</span></div>
+        ${data.bikeError ? `<div class="rr-err">Motorcycle: ${escHtml(data.bikeError)}</div>` : ''}
+        <div class="rr-note">Times assume no traffic — allow extra in town.</div>
       `;
       resultBox.classList.remove('hidden');
       document.getElementById('r-save-btn').classList.remove('hidden');

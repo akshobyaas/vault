@@ -1,7 +1,9 @@
 // api/distance.js — Vercel Serverless Function
 // Resolves a Google Maps link (full, short, or place-name) to coordinates,
-// then returns driving + cycling distance/duration from NIE North Campus via OSRM.
-// No API keys required (OSRM public demo server + Nominatim for geocoding).
+// then returns car + motorcycle distance/duration from NIE North Campus.
+// Routing: Valhalla (FOSSGIS public server) for both car and motorcycle, with the OSRM
+// demo server as a car-only backup. Geocoding: Nominatim. No API keys required.
+// Note: none of these services know about live traffic, so times are free-flow estimates.
 
 // NIE North Campus — precise coordinates (12°22'22.4"N 76°35'06.1"E), hardcoded to avoid
 // a geocoding round-trip on every request.
@@ -97,24 +99,62 @@ async function resolveDestination(link) {
   return await geocode(target);
 }
 
-// router.project-osrm.org's public demo only has driving data loaded — requesting
-// "cycling" against it silently returns the same car route instead of erroring.
-// Use OSM Germany's dedicated bike-routing server for cycling instead.
-const OSRM_SERVERS = {
-  driving: { base: 'https://router.project-osrm.org/route/v1/driving' },
-  cycling: { base: 'https://routing.openstreetmap.de/routed-bike/route/v1/bike' },
-};
+// ── Routing ──
+// Valhalla has real "auto" and "motorcycle" profiles (OSRM's public demo only has driving).
+// The API response keeps the field name `bike` so existing sheet columns (bike_km / bike_min)
+// keep working — it now means motorcycle.
+const VALHALLA_URL = 'https://valhalla1.openstreetmap.de/route';
+const OSRM_DRIVING = 'https://router.project-osrm.org/route/v1/driving';
 
-async function routeOSRM(profile, origin, dest) {
-  const server = OSRM_SERVERS[profile];
-  const url = `${server.base}/${origin.lng},${origin.lat};${dest.lng},${dest.lat}?overview=false`;
-  const { data } = await safeFetch(url);
-  if (data.code !== 'Ok' || !data.routes?.[0]) {
-    throw new Error(`${profile} routing failed: ${data.code || 'unknown error'}`);
+async function fetchWithTimeout(url, opts = {}, ms = 9000) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), ms);
+  try { return await fetch(url, { ...opts, signal: ctrl.signal }); }
+  finally { clearTimeout(t); }
+}
+
+async function routeValhalla(costing, origin, dest) {
+  const body = {
+    locations: [{ lat: origin.lat, lon: origin.lng }, { lat: dest.lat, lon: dest.lng }],
+    costing,
+    units: 'kilometers',
+    directions_type: 'none',
+  };
+  if (costing === 'motorcycle') {
+    // A road-legal motorcycle like a Hunter 350: highways fine, avoid unpaved tracks.
+    body.costing_options = { motorcycle: { use_highways: 1.0, use_trails: 0.0 } };
   }
+  const res = await fetchWithTimeout(VALHALLA_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'User-Agent': 'MyVault-RideDrive/1.0 (personal tool)' },
+    body: JSON.stringify(body),
+  });
+  const text = await res.text();
+  let data;
+  try { data = JSON.parse(text); }
+  catch { throw new Error(`Valhalla returned non-JSON (${res.status})`); }
+  const sum = data?.trip?.summary;
+  if (!res.ok || !sum) throw new Error(data?.error || `Valhalla ${costing} routing failed (${res.status})`);
+  return { distance_km: +sum.length.toFixed(2), duration_min: Math.round(sum.time / 60) };
+}
+
+async function routeOSRMDriving(origin, dest) {
+  const url = `${OSRM_DRIVING}/${origin.lng},${origin.lat};${dest.lng},${dest.lat}?overview=false`;
+  const { data } = await safeFetch(url);
+  if (data.code !== 'Ok' || !data.routes?.[0]) throw new Error(`driving routing failed: ${data.code || 'unknown error'}`);
   const r = data.routes[0];
   return { distance_km: +(r.distance / 1000).toFixed(2), duration_min: Math.round(r.duration / 60) };
 }
+
+async function routeCar(origin, dest) {
+  try { return await routeValhalla('auto', origin, dest); }
+  catch (e) {
+    try { return await routeOSRMDriving(origin, dest); }   // backup if Valhalla is down
+    catch { throw e; }
+  }
+}
+
+const routeMotorcycle = (origin, dest) => routeValhalla('motorcycle', origin, dest);
 
 // Best-effort rate limit — resets on cold start since it's in-memory, but still helps
 // during sustained abuse within a warm instance. The API key above is the real gate;
@@ -160,8 +200,8 @@ module.exports = async function handler(req, res) {
     const [origin, dest] = await Promise.all([getOrigin(), resolveDestination(link)]);
 
     const [car, bike] = await Promise.allSettled([
-      routeOSRM('driving', origin, dest),
-      routeOSRM('cycling', origin, dest),
+      routeCar(origin, dest),
+      routeMotorcycle(origin, dest),
     ]);
 
     if (car.status === 'rejected' && bike.status === 'rejected') {
