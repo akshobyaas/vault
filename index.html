@@ -226,8 +226,9 @@
       display: flex; align-items: center; gap: 5px;
       padding: 5px 6px; cursor: pointer; font-size: 16px; color: #000;
       white-space: nowrap; touch-action: manipulation;
-      overflow: hidden; text-overflow: ellipsis;
+      overflow: hidden;
     }
+    .cat-folder .cat-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
     .cat-folder:hover, .cat-folder:active { background: #000080; color: #fff; }
     .cat-folder.active { background: #000080; color: #fff; }
 
@@ -447,7 +448,7 @@
        ════════════════════════════════ */
     @media (max-width: 1280px) {
       #main-window { max-width: 100%; }
-      #sidebar { width: 140px; }
+      #sidebar { width: 172px; }
       #content { grid-template-columns: repeat(auto-fill, minmax(85px, 1fr)); }
     }
 
@@ -967,7 +968,7 @@
     const cats = ['All', ...curCats().filter(c => curItems().some(l => l[field] === c))];
     document.getElementById('cat-list').innerHTML = cats.map(c =>
       `<div class="cat-folder${c===activeCat?' active':''}" role="button" tabindex="0" title="${c}" onclick="setCat('${c}')">
-        ${c==='All'?'🗂️':emojiMap[c]} ${c}
+        <span>${c==='All'?'🗂️':emojiMap[c]}</span><span class="cat-name">${c}</span>
       </div>`
     ).join('');
   }
