@@ -261,7 +261,7 @@
       flex: 1; background: #fff; padding: 10px;
       overflow-y: auto; overflow-x: hidden; position: relative;
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(116px, 1fr));
       gap: 6px 8px; align-content: start;
     }
     /* Win95 keyboard focus: dotted rectangle inside the control */
@@ -311,7 +311,7 @@
       font-size: 15px; text-align: center; color: #000;
       line-height: 1.1; max-width: 100%; padding: 1px 3px;
       border: 1px dotted transparent;
-      overflow-wrap: break-word;
+      overflow-wrap: break-word; hyphens: auto;
       display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
     }
     .link-icon:hover .icon-name { text-decoration: underline; text-decoration-color: #000080; }
@@ -449,7 +449,7 @@
     @media (max-width: 1280px) {
       #main-window { max-width: 100%; }
       #sidebar { width: 172px; }
-      #content { grid-template-columns: repeat(auto-fill, minmax(85px, 1fr)); }
+      #content { grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); }
     }
 
     /* ════════════════════════════════
@@ -462,7 +462,7 @@
       .ride-cols { grid-template-columns: 24px minmax(0, 1fr) 150px 150px; column-gap: 8px; }
       #status-selected { display: none; }
       #search-input { max-width: 180px; }
-      #content { grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 6px; }
+      #content { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 6px; }
     }
 
     /* ════════════════════════════════
@@ -493,7 +493,7 @@
       /* Larger touch targets for icons */
       .link-icon { padding: 10px 2px; }
       .link-icon .icon-name { font-size: 15px; }
-      #content { grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 4px 6px; padding: 8px; }
+      #content { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 4px 4px; padding: 6px; }
 
       /* Window chrome: the fake min/max/close buttons do nothing — drop them on phones */
       #main-window > .titlebar .winbtns { display: none; }
@@ -942,6 +942,14 @@
       return host ? `https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=64` : null;
     } catch { return null; }
   }
+  // Called when an icon fails: try DuckDuckGo's icon service once, then fall back to the category emoji.
+  function faviconFallback(img, emoji) {
+    if (!img.dataset.tried) {
+      img.dataset.tried = '1';
+      try { img.src = `https://icons.duckduckgo.com/ip3/${new URL(img.dataset.site).hostname}.ico`; return; } catch {}
+    }
+    img.parentNode.textContent = emoji;
+  }
 
   function emptyStateHtml(kind) {
     const touch = window.matchMedia('(hover: none)').matches;
@@ -1033,8 +1041,8 @@
         const iconHtml = hasImg
           ? `<img src="${escHtml(l.result)}" class="result-thumb" alt="" />`
           : fav
-          ? `<img src="${escHtml(fav)}" class="favicon" alt="" loading="lazy" referrerpolicy="no-referrer"
-               onerror="this.parentNode.textContent='${catEmoji}'" /><span class="fav-badge">${catEmoji}</span>`
+          ? `<img src="${escHtml(fav)}" data-site="${escHtml(l.url)}" class="favicon" alt="" loading="lazy" referrerpolicy="no-referrer"
+               onerror="faviconFallback(this, '${catEmoji}')" /><span class="fav-badge">${catEmoji}</span>`
           : catEmoji;
         div.innerHTML = `<div class="emoji-box">${iconHtml}</div>
           <div class="icon-name">${escHtml(l.title)}${badges}</div>`;
